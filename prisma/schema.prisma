@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum PollType {
+  MEETING_TIME
+  STUDY_TOPIC
+  CUSTOM
+}
+
+enum NotifType {
+  NEW_MESSAGE
+  NEW_ASSIGNMENT
+  POLL_UPDATE
+  ANNOUNCEMENT
+}
+
+model User {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String   @unique
+  name          String
+  course        String?
+  yearOfStudy   Int?
+  profilePicUrl String?
+  createdAt     DateTime @default(now())
+
+  memberships     GroupMember[]
+  messages        Message[]
+  createdGroups   Group[]        @relation("GroupCreatedBy")
+  assignments     Assignment[]   @relation("AssignmentCreatedBy")
+  completions     AssignmentCompletion[]
+  pollVotes       PollVote[]
+  notifications   Notification[]
+  authoredFiles   SharedFile[]   @relation("FileUploadedBy")
+  announcements   Announcement[] @relation("AnnouncementPostedBy")
+  polls           Poll[]         @relation("PollCreatedBy")
+  notificationPreferences NotificationPreference[]
+}
+
+model Group {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  description  String?
+  createdBy    String   @db.Uuid
+  createdAt    DateTime @default(now())
+  isPrivate    Boolean  @default(false)
+  inviteCode   String?  @unique
+  accentColor  String   @default("#06b6d4")
+
+  creator      User           @relation("GroupCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade)
+  members      GroupMember[]
+  messages     Message[]
+  files        SharedFile[]
+  announcements Announcement[]
+  assignments  Assignment[]
+  polls        Poll[]
+  notifications Notification[]
+}
+
+model GroupMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String   @db.Uuid
+  userId    String   @db.Uuid
+  role      Role     @default(MEMBER)
+  joinedAt  DateTime @default(now())
+  lastSeenAt DateTime?
+
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model Message {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String   @db.Uuid
+  userId    String   @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+  editedAt  DateTime?
+
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SharedFile {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String   @db.Uuid
+  uploadedBy  String   @db.Uuid
+  fileName    String
+  fileUrl     String
+  fileType    String
+  fileSize    Int
+  createdAt   DateTime @default(now())
+
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploader    User     @relation("FileUploadedBy", fields: [uploadedBy], references: [id], onDelete: Cascade)
+}
+
+model Announcement {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String   @db.Uuid
+  postedBy  String   @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  poster    User     @relation("AnnouncementPostedBy", fields: [postedBy], references: [id], onDelete: Cascade)
+}
+
+model Assignment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String   @db.Uuid
+  createdBy   String   @db.Uuid
+  title       String
+  description String?
+  dueDate     DateTime
+  createdAt   DateTime @default(now())
+
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator     User     @relation("AssignmentCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade)
+  completions AssignmentCompletion[]
+}
+
+model AssignmentCompletion {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assignmentId String    @db.Uuid
+  userId       String    @db.Uuid
+  completedAt  DateTime?
+
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, userId])
+}
+
+model Poll {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId       String   @db.Uuid
+  createdBy     String   @db.Uuid
+  question      String
+  type          PollType
+  allowMultiple Boolean  @default(false)
+  closesAt      DateTime?
+  createdAt     DateTime @default(now())
+
+  group         Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator       User     @relation("PollCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade)
+  options       PollOption[]
+}
+
+model PollOption {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pollId   String @db.Uuid
+  label    String
+
+  poll     Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes    PollVote[]
+}
+
+model PollVote {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pollOptionId  String   @db.Uuid
+  userId        String   @db.Uuid
+  votedAt       DateTime @default(now())
+
+  pollOption    PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollOptionId, userId])
+}
+
+model NotificationPreference {
+  id      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId  String    @db.Uuid
+  type    NotifType
+  enabled Boolean   @default(true)
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+}
+
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  type      NotifType
+  groupId   String?  @db.Uuid
+  refId     String?
+  content   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}

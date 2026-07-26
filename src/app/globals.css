@@ -1,26 +1,71 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8f4;
+  --foreground: #1e2130;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-space-grotesk);
+  --font-mono: var(--font-ibm-plex-mono);
+
+  /* Exact tokens from design/reference.html :root - the source of truth for
+     the app's design system. Group accent colors cycle through indigo,
+     sage, sunflower, teal, and plum (see src/lib/groupColors.ts). Coral is
+     reserved for alerts (due-soon/overdue, unread indicators) - see the
+     note in groupColors.ts for why it's excluded from that rotation. */
+  --color-paper: #faf8f4;
+  --color-paper-alt: #f1ede3;
+  --color-ink: #1e2130;
+  --color-ink-light: #656b7e;
+  --color-border: #e4decf;
+
+  --color-indigo: #1aa76b;
+  --color-indigo-tint: #e1f5ec;
+  --color-coral: #ff6952;
+  --color-coral-tint: #ffe9e5;
+  --color-sage: #4e9270;
+  --color-sage-tint: #e4f1ea;
+  --color-sunflower: #8a9a2e;
+  --color-sunflower-tint: #f1f5da;
+  --color-teal: #159c8c;
+  --color-teal-tint: #def2ef;
+  --color-plum: #2f6b4c;
+  --color-plum-tint: #e1edea;
+
+  /* Aliases used throughout components - keep the semantic names as the
+     primary vocabulary in TSX (brand/muted/surface) while staying backed by
+     the exact reference values above. */
+  --color-brand: var(--color-indigo);
+  --color-brand-hover: #168e5b;
+  --color-brand-light: var(--color-indigo-tint);
+  --color-coral-light: var(--color-coral-tint);
+  --color-surface: #ffffff;
+  --color-surface-recessed: var(--color-paper-alt);
+  --color-muted: var(--color-ink-light);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #faf8f4;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-space-grotesk), sans-serif;
+  letter-spacing: -0.01em;
 }

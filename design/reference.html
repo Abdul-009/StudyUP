@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Up — Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FAF8F4;
+    --paper-alt: #F1EDE3;
+    --ink: #1E2130;
+    --ink-light: #656B7E;
+    --border: #E4DECF;
+    --indigo: #1AA76B;
+    --indigo-tint: #E1F5EC;
+    --coral: #FF6952;
+    --coral-tint: #FFE9E5;
+    --sage: #4E9270;
+    --sage-tint: #E4F1EA;
+    --sunflower: #8A9A2E;
+    --sunflower-tint: #F1F5DA;
+    --teal: #159C8C;
+    --teal-tint: #DEF2EF;
+    --plum: #2F6B4C;
+    --plum-tint: #E1EDE4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, .display {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: 232px;
+    flex-shrink: 0;
+    background: var(--paper-alt);
+    border-right: 1px solid var(--border);
+    padding: 28px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 32px;
+    padding-left: 10px;
+  }
+  .logo span { color: var(--indigo); }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink-light);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.15s ease;
+  }
+  .nav-item:hover { background: #E9E4D6; }
+  .nav-item.active {
+    background: white;
+    color: var(--ink);
+    border-left: 3px solid var(--indigo);
+  }
+  .nav-item .icon { width: 18px; text-align: center; font-size: 15px; }
+  .nav-item .badge {
+    margin-left: auto;
+    background: var(--coral);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 20px;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  .avatar-sm {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--plum); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+  }
+  .sidebar-footer .name { font-size: 13.5px; font-weight: 600; }
+  .sidebar-footer .role { font-size: 12px; color: var(--ink-light); }
+
+  /* ---------- Main ---------- */
+  .main { flex: 1; padding: 36px 44px; max-width: 920px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 28px;
+  }
+  .page-header h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  .page-header p { color: var(--ink-light); font-size: 14px; margin-top: 4px; }
+
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: var(--indigo);
+    color: white;
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--ink);
+  }
+
+  .search-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: white; border: 1px solid var(--border);
+    border-radius: 12px; padding: 11px 16px;
+    margin-bottom: 24px; font-size: 14px; color: var(--ink-light);
+  }
+
+  /* ---------- Group cards (Home) ---------- */
+  .group-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .group-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px 22px;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, transform 0.1s ease;
+  }
+  .group-card:hover { box-shadow: 0 6px 18px rgba(30,33,48,0.08); transform: translateY(-1px); }
+  .group-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .group-badge {
+    width: 46px; height: 46px; border-radius: 16px;
+    background: var(--card-color, var(--indigo));
+    color: white; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .group-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.01em; }
+  .group-card .desc { font-size: 13px; color: var(--ink-light); margin-bottom: 14px; line-height: 1.4; }
+  .group-card .preview { font-size: 12.5px; color: var(--ink-light); border-top: 1px solid var(--border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .unread-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--coral); flex-shrink: 0; }
+  .member-stack { display: flex; }
+  .member-stack .avatar-sm { width: 26px; height: 26px; font-size: 10.5px; border: 2px solid white; margin-left: -8px; }
+  .member-stack .avatar-sm:first-child { margin-left: 0; }
+
+  .new-group-card {
+    border: 1.5px dashed var(--border);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-light);
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    min-height: 118px;
+  }
+  .new-group-card:hover { border-color: var(--indigo); color: var(--indigo); }
+
+  /* ---------- Chat (messenger layout) ---------- */
+  .chat-layout { display: flex; gap: 16px; height: 560px; }
+
+  .chat-list {
+    width: 268px; flex-shrink: 0; background: white;
+    border: 1px solid var(--border); border-radius: 12px;
+    overflow-y: auto; display: flex; flex-direction: column;
+  }
+  .chat-list-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-light); padding: 14px 16px 6px; }
+  .chat-list-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; cursor: pointer; border-left: 3px solid transparent;
+  }
+  .chat-list-item:hover { background: var(--paper-alt); }
+  .chat-list-item.active { background: var(--indigo-tint); border-left: 3px solid var(--item-color, var(--indigo)); }
+  .chat-list-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--item-color, var(--indigo)); flex-shrink: 0; }
+  .chat-list-item .info { flex: 1; min-width: 0; }
+  .chat-list-item .info .name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-list-item .info .preview { font-size: 12px; color: var(--ink-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-list-item .time { font-size: 10.5px; color: var(--ink-light); flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; }
+
+  .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .chat-header {
+    display: flex; align-items: center; gap: 14px;
+    border-left: 4px solid var(--teal);
+    background: white; border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 20px; margin-bottom: 14px;
+  }
+  .chat-header h2 { font-size: 17px; }
+  .chat-header .meta { font-size: 12.5px; color: var(--ink-light); }
+  .chat-header .member-stack { margin-left: auto; }
+
+  .chat-window {
+    background: white; border: 1px solid var(--border);
+    border-radius: 12px; padding: 22px; flex: 1;
+    overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
+    margin-bottom: 14px;
+  }
+  .msg { display: flex; gap: 10px; max-width: 68%; }
+  .msg.me { align-self: flex-end; flex-direction: row-reverse; }
+  .msg .bubble { background: var(--paper-alt); border-radius: 16px; padding: 10px 15px; font-size: 14px; line-height: 1.45; }
+  .msg.me .bubble { background: var(--indigo); color: white; }
+  .msg .who { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .msg .time { font-size: 10.5px; color: var(--ink-light); margin-top: 4px; display: block; }
+  .msg.me .time { text-align: right; }
+
+  .composer {
+    display: flex; align-items: center; gap: 12px; background: white;
+    border: 1px solid var(--border); border-radius: 12px; padding: 10px 10px 10px 18px;
+  }
+  .composer input { flex: 1; border: none; outline: none; font-size: 14px; font-family: 'Inter'; }
+  .composer-icon { color: var(--ink-light); font-size: 15px; cursor: pointer; padding: 4px; }
+  .btn-send { background: var(--ink); color: white; border-radius: 20px; padding: 9px 20px; }
+
+  /* ---------- Assignments ---------- */
+  .filter-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .filter-tab {
+    padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    border: 1px solid var(--border); color: var(--ink-light); cursor: pointer;
+  }
+  .filter-tab.active { background: var(--ink); color: white; border-color: var(--ink); }
+
+  .assignment-card {
+    background: white; border: 1px solid var(--border);
+    border-left: 4px solid var(--card-color, var(--indigo));
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .assignment-check {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--border); flex-shrink: 0; cursor: pointer;
+  }
+  .assignment-check.done { background: var(--sage); border-color: var(--sage); position: relative; }
+  .assignment-check.done::after {
+    content: '✓'; color: white; font-size: 12px; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .assignment-info { flex: 1; }
+  .assignment-info h3 { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+  .assignment-info .group-tag { font-size: 12px; color: var(--ink-light); }
+  .assignment-due { text-align: right; }
+  .assignment-due .date { font-size: 12.5px; font-weight: 600; }
+  .assignment-due .date.soon { color: var(--coral); }
+  .assignment-due .progress { font-size: 11.5px; color: var(--ink-light); margin-top: 3px; }
+
+  /* ---------- Polls ---------- */
+  .poll-card {
+    background: white; border: 1px solid var(--border);
+    border-left: 4px solid var(--sunflower);
+    border-radius: 12px; padding: 20px 22px; margin-bottom: 18px;
+  }
+  .poll-card .group-tag { font-size: 12px; color: var(--ink-light); margin-bottom: 4px; }
+  .poll-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; }
+  .poll-option { margin-bottom: 10px; }
+  .poll-option-top { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 5px; }
+  .poll-option-top .pct { font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; }
+  .poll-bar-track { background: var(--paper-alt); border-radius: 8px; height: 10px; overflow: hidden; }
+  .poll-bar-fill { background: var(--sunflower); height: 100%; border-radius: 8px; }
+  .poll-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px; color: var(--ink-light); }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo">Study<span>Up</span></div>
+  <div class="nav-item active" data-view="home"><span class="icon">⌂</span> Home</div>
+  <div class="nav-item" data-view="chat"><span class="icon">💬</span> Group Chat</div>
+  <div class="nav-item" data-view="assignments"><span class="icon">✓</span> Assignments</div>
+  <div class="nav-item" data-view="polls"><span class="icon">◐</span> Polls</div>
+  <div class="nav-item" data-view="notif"><span class="icon">🔔</span> Notifications <span class="badge">3</span></div>
+  <div class="sidebar-footer">
+    <div class="avatar-sm">JM</div>
+    <div>
+      <div class="name">Jordan Marsh</div>
+      <div class="role">Biology, Year 2</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- HOME -->
+  <div class="view active" id="home">
+    <div class="page-header">
+      <div>
+        <h1>Your study groups</h1>
+        <p>5 groups · 2 with unread messages</p>
+      </div>
+      <button class="btn">+ New group</button>
+    </div>
+    <div class="search-bar">🔍 Search groups by name or course code</div>
+    <div class="group-grid">
+      <div class="group-card" style="--card-color: var(--indigo);" onclick="showView('chat')">
+        <div class="group-card-top">
+          <div class="group-badge">CS</div>
+          <span class="unread-dot"></span>
+        </div>
+        <h3>CS 301 · Algorithms</h3>
+        <div class="desc">Weekly problem set review + exam prep</div>
+        <div class="preview">
+          <div class="member-stack">
+            <div class="avatar-sm" style="background:var(--indigo)">R</div>
+            <div class="avatar-sm" style="background:var(--sage)">K</div>
+            <div class="avatar-sm" style="background:var(--coral)">T</div>
+          </div>
+          <span>Priya: "pushed the diagram to files"</span>
+        </div>
+      </div>
+
+      <div class="group-card" style="--card-color: var(--sage);">
+        <div class="group-card-top">
+          <div class="group-badge">OS</div>
+        </div>
+        <h3>Orgo Study Squad</h3>
+        <div class="desc">Chapter reviews + lab report co-writing</div>
+        <div class="preview">
+          <div class="member-stack">
+            <div class="avatar-sm" style="background:var(--plum)">A</div>
+            <div class="avatar-sm" style="background:var(--teal)">D</div>
+          </div>
+          <span>4 members</span>
+        </div>
+      </div>
+
+      <div class="group-card" style="--card-color: var(--coral);">
+        <div class="group-card-top">
+          <div class="group-badge">SP</div>
+          <span class="unread-dot"></span>
+        </div>
+        <h3>Spanish 202 Conversation</h3>
+        <div class="desc">Practice speaking, share vocab decks</div>
+        <div class="preview">
+          <div class="member-stack">
+            <div class="avatar-sm" style="background:var(--sunflower)">M</div>
+            <div class="avatar-sm" style="background:var(--indigo)">L</div>
+            <div class="avatar-sm" style="background:var(--coral)">S</div>
+          </div>
+          <span>Miguel: "¿nos vemos el jueves?"</span>
+        </div>
+      </div>
+
+      <div class="group-card" style="--card-color: var(--sunflower);">
+        <div class="group-card-top">
+          <div class="group-badge">SD</div>
+        </div>
+        <h3>Stats for Data Sci</h3>
+        <div class="desc">Homework help + midterm study plan</div>
+        <div class="preview">
+          <div class="member-stack">
+            <div class="avatar-sm" style="background:var(--teal)">C</div>
+            <div class="avatar-sm" style="background:var(--plum)">N</div>
+          </div>
+          <span>6 members</span>
+        </div>
+      </div>
+
+      <div class="new-group-card">+ Create a new group</div>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="view" id="chat">
+    <div class="page-header">
+      <div>
+        <h1>Group Chat</h1>
+        <p>CS 301 · Algorithms</p>
+      </div>
+    </div>
+    <div class="chat-layout">
+      <div class="chat-list">
+        <div class="chat-list-label">All groups</div>
+        <div class="chat-list-item active" style="--item-color: var(--indigo);">
+          <div class="chat-list-dot"></div>
+          <div class="info">
+            <div class="name">CS 301 · Algorithms</div>
+            <div class="preview">Ravi: pushed the diagram to files</div>
+          </div>
+          <div class="time">2:19 PM</div>
+        </div>
+        <div class="chat-list-item" style="--item-color: var(--sage);">
+          <div class="chat-list-dot"></div>
+          <div class="info">
+            <div class="name">Orgo Study Squad</div>
+            <div class="preview">Dana: see you all Thursday</div>
+          </div>
+          <div class="time">Yesterday</div>
+        </div>
+        <div class="chat-list-item" style="--item-color: var(--coral);">
+          <div class="chat-list-dot"></div>
+          <div class="info">
+            <div class="name">Spanish 202 Conversation</div>
+            <div class="preview">Miguel: ¿nos vemos el jueves?</div>
+          </div>
+          <div class="time">Mon</div>
+        </div>
+        <div class="chat-list-item" style="--item-color: var(--sunflower);">
+          <div class="chat-list-dot"></div>
+          <div class="info">
+            <div class="name">Stats for Data Sci</div>
+            <div class="preview">Chen: uploaded lecture 6 slides</div>
+          </div>
+          <div class="time">Sun</div>
+        </div>
+      </div>
+
+      <div class="chat-main">
+        <div class="chat-header" style="border-left-color: var(--indigo);">
+          <div>
+            <h2>CS 301 · Algorithms</h2>
+            <div class="meta">8 members</div>
+          </div>
+          <div class="member-stack">
+            <div class="avatar-sm" style="background:var(--indigo)">R</div>
+            <div class="avatar-sm" style="background:var(--sage)">K</div>
+            <div class="avatar-sm" style="background:var(--coral)">T</div>
+            <div class="avatar-sm" style="background:var(--plum)">+5</div>
+          </div>
+        </div>
+        <div class="chat-window">
+          <div class="msg">
+            <div class="avatar-sm" style="background:var(--sage)">K</div>
+            <div>
+              <div class="who">Kavya</div>
+              <div class="bubble">did anyone figure out part (c) of problem 4? I keep getting O(n log n) but the answer key says O(n)</div>
+              <span class="time">2:14 PM</span>
+            </div>
+          </div>
+          <div class="msg">
+            <div class="avatar-sm" style="background:var(--coral)">T</div>
+            <div>
+              <div class="who">Theo</div>
+              <div class="bubble">you can skip the sort if you use a counting approach — I'll upload my notes</div>
+              <span class="time">2:16 PM</span>
+            </div>
+          </div>
+          <div class="msg me">
+            <div class="avatar-sm" style="background:var(--indigo)">R</div>
+            <div>
+              <div class="bubble">pushed the diagram to shared files, check it out</div>
+              <span class="time">2:19 PM</span>
+            </div>
+          </div>
+        </div>
+        <div class="composer">
+          <span class="composer-icon">📎</span>
+          <input type="text" placeholder="Message CS 301...">
+          <span class="composer-icon">🙂</span>
+          <button class="btn btn-send">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ASSIGNMENTS -->
+  <div class="view" id="assignments">
+    <div class="page-header">
+      <div>
+        <h1>Assignments</h1>
+        <p>Across all your groups</p>
+      </div>
+      <button class="btn">+ New assignment</button>
+    </div>
+    <div class="filter-tabs">
+      <div class="filter-tab active">Upcoming</div>
+      <div class="filter-tab">Overdue</div>
+      <div class="filter-tab">Completed</div>
+    </div>
+
+    <div class="assignment-card" style="--card-color: var(--indigo);">
+      <div class="assignment-check"></div>
+      <div class="assignment-info">
+        <h3>Problem Set 4</h3>
+        <div class="group-tag">CS 301 · Algorithms</div>
+      </div>
+      <div class="assignment-due">
+        <div class="date soon mono">Due tomorrow</div>
+        <div class="progress">5/8 done</div>
+      </div>
+    </div>
+
+    <div class="assignment-card" style="--card-color: var(--sage);">
+      <div class="assignment-check done"></div>
+      <div class="assignment-info">
+        <h3>Reading: Ch. 7–9</h3>
+        <div class="group-tag">Orgo Study Squad</div>
+      </div>
+      <div class="assignment-due">
+        <div class="date mono">Fri, Jul 24</div>
+        <div class="progress">2/4 done</div>
+      </div>
+    </div>
+
+    <div class="assignment-card" style="--card-color: var(--sunflower);">
+      <div class="assignment-check"></div>
+      <div class="assignment-info">
+        <h3>Practice Problem Set — Regression</h3>
+        <div class="group-tag">Stats for Data Sci</div>
+      </div>
+      <div class="assignment-due">
+        <div class="date mono">Mon, Jul 27</div>
+        <div class="progress">1/6 done</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POLLS -->
+  <div class="view" id="polls">
+    <div class="page-header">
+      <div>
+        <h1>Polls</h1>
+        <p>Vote on meeting times and study topics</p>
+      </div>
+      <button class="btn">+ New poll</button>
+    </div>
+
+    <div class="poll-card">
+      <div class="group-tag">CS 301 · Algorithms</div>
+      <h3>Best time to meet this week?</h3>
+      <div class="poll-option">
+        <div class="poll-option-top"><span>Tuesday, 6:00 PM</span><span class="pct">50%</span></div>
+        <div class="poll-bar-track"><div class="poll-bar-fill" style="width:50%"></div></div>
+      </div>
+      <div class="poll-option">
+        <div class="poll-option-top"><span>Wednesday, 7:00 PM</span><span class="pct">37%</span></div>
+        <div class="poll-bar-track"><div class="poll-bar-fill" style="width:37%"></div></div>
+      </div>
+      <div class="poll-option">
+        <div class="poll-option-top"><span>Thursday, 5:00 PM</span><span class="pct">13%</span></div>
+        <div class="poll-bar-track"><div class="poll-bar-fill" style="width:13%"></div></div>
+      </div>
+      <div class="poll-footer">
+        <span>8 votes</span>
+        <span class="mono">Closes in 1d 4h</span>
+      </div>
+    </div>
+
+    <div class="poll-card">
+      <div class="group-tag">Orgo Study Squad</div>
+      <h3>Which topic should we prioritize next session?</h3>
+      <div class="poll-option">
+        <div class="poll-option-top"><span>Reaction mechanisms</span><span class="pct">66%</span></div>
+        <div class="poll-bar-track"><div class="poll-bar-fill" style="width:66%"></div></div>
+      </div>
+      <div class="poll-option">
+        <div class="poll-option-top"><span>Stereochemistry review</span><span class="pct">34%</span></div>
+        <div class="poll-bar-track"><div class="poll-bar-fill" style="width:34%"></div></div>
+      </div>
+      <div class="poll-footer">
+        <span>3 votes</span>
+        <span class="mono">Closes in 3d</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS (placeholder tie-in) -->
+  <div class="view" id="notif">
+    <div class="page-header">
+      <div>
+        <h1>Notifications</h1>
+        <p>3 unread</p>
+      </div>
+    </div>
+    <div class="assignment-card" style="--card-color: var(--coral);">
+      <div class="assignment-info">
+        <h3>New message in CS 301 · Algorithms</h3>
+        <div class="group-tag">Theo: "you can skip the sort if..."</div>
+      </div>
+      <div class="assignment-due"><div class="date mono">2m ago</div></div>
+    </div>
+    <div class="assignment-card" style="--card-color: var(--sunflower);">
+      <div class="assignment-info">
+        <h3>New poll in CS 301 · Algorithms</h3>
+        <div class="group-tag">Best time to meet this week?</div>
+      </div>
+      <div class="assignment-due"><div class="date mono">1h ago</div></div>
+    </div>
+    <div class="assignment-card" style="--card-color: var(--sage);">
+      <div class="assignment-info">
+        <h3>New assignment in Orgo Study Squad</h3>
+        <div class="group-tag">Reading: Ch. 7–9</div>
+      </div>
+      <div class="assignment-due"><div class="date mono">Yesterday</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const navItems = document.querySelectorAll('.nav-item');
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    navItems.forEach(n => n.classList.toggle('active', n.dataset.view === id));
+  }
+  navItems.forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
+
+  document.querySelectorAll('.assignment-check').forEach(box => {
+    box.addEventListener('click', () => box.classList.toggle('done'));
+  });
+
+  document.querySelectorAll('.chat-list-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.chat-list-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
