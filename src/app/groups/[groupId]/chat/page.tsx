@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import ChatSidebar from "./ChatSidebar";
-import GroupChatClient from "./GroupChatClient";
+import ChatLayout from "./ChatLayout";
 
 type MessageRecord = {
   id: string;
@@ -114,24 +113,23 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
   }));
 
   return (
-    <main className="px-11 py-9">
-      <div className="mb-7 flex items-end justify-between gap-4">
+    <main className="flex flex-1 flex-col px-4 py-6 md:px-11 md:py-9">
+      <div className="mb-4 flex items-end justify-between gap-4 md:mb-7">
         <div>
-          <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Group Chat</h1>
+          <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground md:text-[32px]">Group Chat</h1>
           <p className="mt-1 text-sm text-muted">{group.name}</p>
         </div>
       </div>
-      <div className="flex min-h-[560px] gap-4">
-        <ChatSidebar groups={sidebarGroups} activeGroupId={groupId} />
-        <GroupChatClient
-          groupId={groupId}
-          groupName={group.name}
-          groupColor={group.accentColor}
-          currentUserId={user.id}
-          initialMessages={(messages ?? []) as MessageRecord[]}
-          initialMembers={members}
-        />
-      </div>
+      <ChatLayout
+        sidebarGroups={sidebarGroups}
+        activeGroupId={groupId}
+        groupId={groupId}
+        groupName={group.name}
+        groupColor={group.accentColor}
+        currentUserId={user.id}
+        initialMessages={(messages ?? []) as MessageRecord[]}
+        initialMembers={members}
+      />
     </main>
   );
 }

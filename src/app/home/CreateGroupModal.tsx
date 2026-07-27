@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Plus, X } from "lucide-react";
 import { createGroup } from "./actions";
 
 type CreateGroupModalProps = {
@@ -16,9 +17,10 @@ export default function CreateGroupModal({ variant }: CreateGroupModalProps) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="shrink-0 rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover"
+          className="flex shrink-0 items-center gap-1.5 rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover"
         >
-          + New group
+          <Plus size={16} />
+          New group
         </button>
       ) : (
         <button
@@ -26,14 +28,14 @@ export default function CreateGroupModal({ variant }: CreateGroupModalProps) {
           onClick={() => setOpen(true)}
           className="flex min-h-[118px] w-full flex-col items-center justify-center gap-2 rounded-[20px] border-[1.5px] border-dashed border-border text-[14px] font-semibold text-muted transition-colors hover:border-brand hover:text-brand"
         >
-          <span className="text-2xl leading-none">+</span>
+          <Plus size={22} />
           <span>Create a new group</span>
         </button>
       )}
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 px-4 py-8"
           onClick={() => setOpen(false)}
         >
           <div
@@ -48,7 +50,7 @@ export default function CreateGroupModal({ variant }: CreateGroupModalProps) {
                 aria-label="Close"
                 className="text-muted hover:text-foreground"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
             <form action={createGroup} className="mt-4 space-y-3">

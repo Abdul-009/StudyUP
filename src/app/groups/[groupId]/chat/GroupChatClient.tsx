@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Paperclip, Smile } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createGroupMessage } from "./actions";
 
@@ -32,6 +33,7 @@ type GroupChatClientProps = {
   currentUserId: string;
   initialMessages: MessageRecord[];
   initialMembers: MemberRecord[];
+  onBack?: () => void;
 };
 
 function sortMessages(items: MessageRecord[]) {
@@ -75,6 +77,7 @@ export default function GroupChatClient({
   currentUserId,
   initialMessages,
   initialMembers,
+  onBack,
 }: GroupChatClientProps) {
   const [messages, setMessages] = useState<MessageRecord[]>(() => sortMessages(initialMessages));
   const [members] = useState<MemberRecord[]>(initialMembers);
@@ -174,8 +177,18 @@ export default function GroupChatClient({
         className="flex items-center gap-3.5 rounded-xl border border-border bg-surface p-[14px] px-5"
         style={{ borderLeftColor: groupColor, borderLeftWidth: "4px" }}
       >
-        <div>
-          <h1 className="text-[17px] font-semibold text-foreground">{groupName}</h1>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to conversations"
+            className="shrink-0 text-muted hover:text-foreground md:hidden"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        ) : null}
+        <div className="min-w-0">
+          <h1 className="truncate text-[17px] font-semibold text-foreground">{groupName}</h1>
           <p className="text-[12.5px] text-muted">
             {members.length} member{members.length === 1 ? "" : "s"}
           </p>
@@ -193,7 +206,7 @@ export default function GroupChatClient({
       </div>
 
       <section className="flex flex-1 flex-col rounded-xl border border-border bg-surface p-[22px]">
-        <div className="flex max-h-[480px] min-h-[320px] flex-col gap-3 overflow-y-auto pr-2">
+        <div className="flex min-h-[320px] flex-1 flex-col gap-3 overflow-y-auto pr-2 md:max-h-[480px] md:flex-none">
           {visibleMessages.length ? (
             visibleMessages.map((message, index) => {
               const isOwn = message.userId === currentUserId;
@@ -235,27 +248,22 @@ export default function GroupChatClient({
           onSubmit={handleSubmit}
           className="mt-4 flex items-center gap-2 rounded-full border border-border bg-surface-recessed py-[10px] pl-[18px] pr-[10px]"
         >
-          <button type="button" aria-label="Attach file" className="text-muted hover:text-foreground">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 01-7.78-7.78l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48" />
-            </svg>
+          <button type="button" aria-label="Attach file" className="shrink-0 text-muted hover:text-foreground">
+            <Paperclip size={18} />
           </button>
-          <button type="button" aria-label="Add emoji" className="text-muted hover:text-foreground">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
-              <circle cx={12} cy={12} r={9} />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 14s1.5 2 3.5 2 3.5-2 3.5-2M9 9h.01M15 9h.01" />
-            </svg>
+          <button type="button" aria-label="Add emoji" className="shrink-0 text-muted hover:text-foreground">
+            <Smile size={18} />
           </button>
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Write a message"
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted focus:outline-none"
           />
           <button
             type="submit"
             disabled={isSending}
-            className="rounded-full bg-ink px-5 py-[9px] text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
+            className="shrink-0 rounded-full bg-ink px-5 py-[9px] text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSending ? "Sending..." : "Send"}
           </button>

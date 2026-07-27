@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { tintColor } from "@/lib/groupColors";
 import { castVote } from "./actions";
@@ -128,7 +129,7 @@ export default function PollsListClient({
           return (
             <div
               key={poll.id}
-              className="rounded-xl border border-border border-l-4 bg-surface px-[22px] py-5"
+              className="rounded-xl border border-border border-l-4 bg-surface px-4 py-4 sm:px-[22px] sm:py-5"
               style={{ borderLeftColor: groupColor }}
             >
               <p className="mb-1 text-xs text-muted">{groupName}</p>
@@ -148,8 +149,12 @@ export default function PollsListClient({
                   const optionContent = (
                     <>
                       <div className="mb-[5px] flex items-center justify-between gap-3 text-[13.5px]">
-                        <span className={option.votedByCurrentUser ? "font-medium text-foreground" : "text-foreground"}>
-                          {option.votedByCurrentUser ? "✓ " : ""}
+                        <span
+                          className={`flex items-center gap-1 ${
+                            option.votedByCurrentUser ? "font-medium text-foreground" : "text-foreground"
+                          }`}
+                        >
+                          {option.votedByCurrentUser ? <Check size={14} strokeWidth={3} /> : null}
                           {option.label}
                         </span>
                         <span className="font-mono text-[12.5px] font-semibold text-foreground">{percentage}%</span>
@@ -185,7 +190,7 @@ export default function PollsListClient({
                 })}
               </div>
 
-              <div className="mt-3.5 flex items-center justify-between text-xs text-muted">
+              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
                 <span>
                   {totalVotes} vote{totalVotes === 1 ? "" : "s"}
                 </span>

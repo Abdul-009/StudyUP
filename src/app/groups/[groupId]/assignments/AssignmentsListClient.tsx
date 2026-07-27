@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { toggleAssignmentCompletion } from "./actions";
 
 type AssignmentStatus = "upcoming" | "overdue" | "completed";
@@ -27,14 +28,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 function statusOf(assignment: AssignmentRecord, now: number): AssignmentStatus {
   if (assignment.isCompletedByCurrentUser) return "completed";
   return new Date(assignment.dueDate).getTime() < now ? "overdue" : "upcoming";
-}
-
-function CheckIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="h-3.5 w-3.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  );
 }
 
 export default function AssignmentsListClient({
@@ -118,31 +111,33 @@ export default function AssignmentsListClient({
             return (
               <div
                 key={assignment.id}
-                className="flex items-center gap-4 rounded-xl border border-border border-l-4 bg-surface px-5 py-4"
+                className="flex flex-col gap-2 rounded-xl border border-border border-l-4 bg-surface px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5 sm:py-4"
                 style={{ borderLeftColor: groupColor }}
               >
-                <button
-                  type="button"
-                  onClick={() => handleToggle(assignment)}
-                  disabled={pendingId === assignment.id}
-                  aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
-                  className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                    isCompleted ? "border-sage bg-sage text-white" : "border-border text-transparent hover:border-foreground"
-                  }`}
-                >
-                  <CheckIcon />
-                </button>
+                <div className="flex min-w-0 flex-1 items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(assignment)}
+                    disabled={pendingId === assignment.id}
+                    aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
+                    className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                      isCompleted ? "border-sage bg-sage text-white" : "border-border text-transparent hover:border-foreground"
+                    }`}
+                  >
+                    <Check size={14} strokeWidth={3} />
+                  </button>
 
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-[15px] font-semibold text-foreground">{assignment.title}</h3>
-                  <p className="truncate text-xs text-muted">{groupName}</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-[15px] font-semibold text-foreground">{assignment.title}</h3>
+                    <p className="truncate text-xs text-muted">{groupName}</p>
+                  </div>
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="flex items-center justify-between gap-3 pl-[38px] sm:block sm:shrink-0 sm:pl-0 sm:text-right">
                   <p className={`font-mono text-[12.5px] font-semibold ${isDueSoonOrOverdue ? "text-coral" : "text-foreground"}`}>
                     {dueDate.toLocaleDateString()}
                   </p>
-                  <p className="mt-[3px] text-[11.5px] text-muted">
+                  <p className="text-[11.5px] text-muted sm:mt-[3px]">
                     {assignment.completedCount}/{totalMembers} done
                   </p>
                 </div>

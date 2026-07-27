@@ -71,10 +71,10 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
   }));
 
   return (
-    <main className="px-11 py-9">
-      <div className="mb-7 flex items-end justify-between gap-4">
+    <main className="px-4 py-6 md:px-11 md:py-9">
+      <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Assignments</h1>
+          <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground md:text-[32px]">Assignments</h1>
           <p className="mt-1 text-sm text-muted">{group.name}</p>
         </div>
         <CreateAssignmentModal groupId={groupId} />

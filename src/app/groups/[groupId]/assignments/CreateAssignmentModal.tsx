@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Plus, X } from "lucide-react";
 import { createAssignment } from "./actions";
 
 export default function CreateAssignmentModal({ groupId }: { groupId: string }) {
@@ -11,14 +12,15 @@ export default function CreateAssignmentModal({ groupId }: { groupId: string }) 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="shrink-0 rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover"
+        className="flex shrink-0 items-center gap-1.5 rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover"
       >
-        + New assignment
+        <Plus size={16} />
+        New assignment
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 px-4 py-8"
           onClick={() => setOpen(false)}
         >
           <div
@@ -33,7 +35,7 @@ export default function CreateAssignmentModal({ groupId }: { groupId: string }) 
                 aria-label="Close"
                 className="text-muted hover:text-foreground"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
             <form action={createAssignment} className="mt-4 space-y-3">

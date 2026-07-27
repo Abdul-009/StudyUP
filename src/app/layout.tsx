@@ -3,6 +3,7 @@ import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
+import UserMenu from "@/components/UserMenu";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -23,7 +24,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StudySync",
+  title: "Study Up",
   description: "A collaborative study group experience built for Next.js and Supabase",
 };
 
@@ -69,7 +70,7 @@ export default async function RootLayout({
       lang="en"
       className={`${spaceGrotesk.variable} ${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex">
+      <body className="flex min-h-full flex-col md:flex-row">
         {user ? (
           <Sidebar
             userId={user.id}
@@ -81,7 +82,19 @@ export default async function RootLayout({
             fallbackGroupId={fallbackGroupId}
           />
         ) : null}
-        <div className="flex-1">{children}</div>
+        <div className={`flex min-w-0 flex-1 flex-col ${user ? "pb-16 md:pb-0" : ""}`}>
+          {user ? (
+            <div className="hidden shrink-0 items-center justify-end border-b border-border bg-surface px-6 py-2.5 md:flex">
+              <UserMenu
+                userName={profile?.name || "Your account"}
+                userCourse={profile?.course ?? null}
+                userYearOfStudy={profile?.yearOfStudy ?? null}
+                userProfilePicUrl={profile?.profilePicUrl ?? null}
+              />
+            </div>
+          ) : null}
+          <div className="min-h-0 flex-1">{children}</div>
+        </div>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { joinGroupFromForm } from "./actions";
 import CreateGroupModal from "./CreateGroupModal";
@@ -182,10 +183,10 @@ export default async function HomePage({
   const visiblePrivateGroups = (privateGroups ?? []).filter((group) => !joinedGroupIds.has(group.id));
 
   return (
-    <main className="max-w-[920px] px-11 py-9">
-      <div className="flex items-end justify-between gap-4">
+    <main className="max-w-[920px] px-4 py-6 md:px-11 md:py-9">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Your study groups</h1>
+          <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground md:text-[32px]">Your study groups</h1>
           <p className="mt-1 text-sm text-muted">
             {groupCards.length} group{groupCards.length === 1 ? "" : "s"}
             {unreadGroupCount > 0 ? ` · ${unreadGroupCount} with unread messages` : ""}
@@ -195,7 +196,7 @@ export default async function HomePage({
       </div>
 
       <form method="get" className="mt-6 flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-[11px]">
-        <span className="text-muted">🔍</span>
+        <Search size={18} className="shrink-0 text-muted" />
         <input
           name="search"
           defaultValue={search}

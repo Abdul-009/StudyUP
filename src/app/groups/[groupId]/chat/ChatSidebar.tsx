@@ -18,7 +18,7 @@ function formatTimestamp(iso: string) {
 
 export default function ChatSidebar({ groups, activeGroupId }: { groups: SidebarGroup[]; activeGroupId: string }) {
   return (
-    <aside className="w-[268px] shrink-0 overflow-y-auto rounded-xl border border-border bg-surface py-1">
+    <aside className="w-full shrink-0 overflow-y-auto rounded-xl border border-border bg-surface py-1 md:w-[268px]">
       <h2 className="px-4 pb-1.5 pt-3.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted">
         All groups
       </h2>
