@@ -51,6 +51,9 @@ export async function createGroupMessage(groupId: string, content: string) {
     throw new Error(messageError?.message || "Failed to send message.");
   }
 
+  const preview = trimmedContent.replace(/\s+/g, " ").slice(0, 80);
+  const previewText = trimmedContent.length > 80 ? `${preview}…` : preview;
+
   const { data: members } = await supabase.from("GroupMember").select("userId").eq("groupId", groupId);
   const notifications = (members ?? [])
     .filter((member) => member.userId !== user.id)
@@ -59,7 +62,7 @@ export async function createGroupMessage(groupId: string, content: string) {
       type: "NEW_MESSAGE",
       groupId,
       refId: message.id,
-      content: `New message in ${group.name}`,
+      content: `New message in ${group.name}: ${previewText}`,
     }));
 
   if (notifications.length) {

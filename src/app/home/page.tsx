@@ -1,7 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Search } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { joinGroupFromForm } from "./actions";
 import CreateGroupModal from "./CreateGroupModal";
 import PublicGroupsSearch from "./PublicGroupsSearch";
@@ -43,11 +44,12 @@ function AvatarStack({ members }: { members: AvatarMember[] }) {
     <div className="flex -space-x-2">
       {shown.map((member) =>
         member.profilePicUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             key={member.id}
             src={member.profilePicUrl}
             alt={member.name}
+            width={26}
+            height={26}
             className="h-[26px] w-[26px] rounded-full border-2 border-white object-cover"
           />
         ) : (
@@ -74,7 +76,7 @@ export default async function HomePage({
   searchParams?: Promise<{ search?: string }>;
 }) {
   const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await getAuthUser();
 
   if (error || !user) {
     redirect("/login");
@@ -93,15 +95,51 @@ export default async function HomePage({
     (myMemberships ?? []).map((row) => [row.groupId, row.lastSeenAt]),
   );
 
-  const { data: joinedGroups } = await supabase
-    .from("Group")
-    .select("id, name, description, accentColor")
-    .in("id", groupIds.length ? groupIds : ["00000000-0000-0000-0000-000000000000"]);
+  const idFilterOrPlaceholder = groupIds.length ? groupIds : ["00000000-0000-0000-0000-000000000000"];
 
-  const { data: allMemberRows } = await supabase
-    .from("GroupMember")
-    .select("groupId, userId")
-    .in("groupId", groupIds.length ? groupIds : ["00000000-0000-0000-0000-000000000000"]);
+  let publicGroupsQuery = supabase
+    .from("Group")
+    .select("id, name, description")
+    .eq("isPrivate", false)
+    .neq("createdBy", user.id)
+    .ilike("name", `%${search}%`)
+    .order("createdAt", { ascending: false })
+    .range(0, PUBLIC_GROUPS_PAGE_SIZE - 1);
+
+  let publicGroupsCountQuery = supabase
+    .from("Group")
+    .select("id", { count: "exact", head: true })
+    .eq("isPrivate", false)
+    .neq("createdBy", user.id)
+    .ilike("name", `%${search}%`);
+
+  if (groupIds.length) {
+    publicGroupsQuery = publicGroupsQuery.not("id", "in", `(${groupIds.join(",")})`);
+    publicGroupsCountQuery = publicGroupsCountQuery.not("id", "in", `(${groupIds.join(",")})`);
+  }
+
+  // These six queries are all independent of one another (they only depend
+  // on groupIds/user.id resolved above), so they run as one parallel wave
+  // instead of a seven-step sequential waterfall.
+  const [
+    { data: joinedGroups },
+    { data: allMemberRows },
+    { data: recentMessages },
+    { data: publicGroups },
+    { count: publicGroupsCount },
+    { data: privateGroups },
+  ] = await Promise.all([
+    supabase.from("Group").select("id, name, description, accentColor").in("id", idFilterOrPlaceholder),
+    supabase.from("GroupMember").select("groupId, userId").in("groupId", idFilterOrPlaceholder),
+    supabase
+      .from("Message")
+      .select("groupId, content, createdAt")
+      .in("groupId", idFilterOrPlaceholder)
+      .order("createdAt", { ascending: false }),
+    publicGroupsQuery,
+    publicGroupsCountQuery,
+    supabase.from("Group").select("id, name, description").eq("isPrivate", true).neq("createdBy", user.id),
+  ]);
 
   const memberUserIds = Array.from(new Set((allMemberRows ?? []).map((row) => row.userId)));
   let userMap: Record<string, AvatarMember> = {};
@@ -110,12 +148,6 @@ export default async function HomePage({
     const { data: users } = await supabase.from("User").select("id, name, profilePicUrl").in("id", memberUserIds);
     userMap = Object.fromEntries((users ?? []).map((row) => [row.id, row]));
   }
-
-  const { data: recentMessages } = await supabase
-    .from("Message")
-    .select("groupId, content, createdAt")
-    .in("groupId", groupIds.length ? groupIds : ["00000000-0000-0000-0000-000000000000"])
-    .order("createdAt", { ascending: false });
 
   const lastMessageByGroup: Record<string, { content: string; createdAt: string }> = {};
   for (const message of recentMessages ?? []) {
@@ -148,36 +180,6 @@ export default async function HomePage({
       hasUnread,
     };
   });
-
-  let publicGroupsQuery = supabase
-    .from("Group")
-    .select("id, name, description")
-    .eq("isPrivate", false)
-    .neq("createdBy", user.id)
-    .ilike("name", `%${search}%`)
-    .order("createdAt", { ascending: false })
-    .range(0, PUBLIC_GROUPS_PAGE_SIZE - 1);
-
-  let publicGroupsCountQuery = supabase
-    .from("Group")
-    .select("id", { count: "exact", head: true })
-    .eq("isPrivate", false)
-    .neq("createdBy", user.id)
-    .ilike("name", `%${search}%`);
-
-  if (groupIds.length) {
-    publicGroupsQuery = publicGroupsQuery.not("id", "in", `(${groupIds.join(",")})`);
-    publicGroupsCountQuery = publicGroupsCountQuery.not("id", "in", `(${groupIds.join(",")})`);
-  }
-
-  const { data: publicGroups } = await publicGroupsQuery;
-  const { count: publicGroupsCount } = await publicGroupsCountQuery;
-
-  const { data: privateGroups } = await supabase
-    .from("Group")
-    .select("id, name, description")
-    .eq("isPrivate", true)
-    .neq("createdBy", user.id);
 
   const joinedGroupIds = new Set(groupIds);
   const visiblePrivateGroups = (privateGroups ?? []).filter((group) => !joinedGroupIds.has(group.id));

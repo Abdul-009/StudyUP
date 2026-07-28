@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { updateNotificationPreferences } from "./actions";
 import ChangePasswordForm from "./ChangePasswordForm";
 import LogoutButton from "./LogoutButton";
@@ -15,7 +15,7 @@ const NOTIF_TYPE_LABELS: Record<(typeof NOTIF_TYPES)[number], string> = {
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await getAuthUser();
 
   if (error || !user) {
     redirect("/login");

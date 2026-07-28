@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -33,8 +34,13 @@ export default function UserMenu({ userName, userCourse, userYearOfStudy, userPr
         <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border bg-white p-1.5 shadow-lg">
           <div className="flex items-center gap-2.5 px-2.5 py-2">
             {userProfilePicUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={userProfilePicUrl} alt={userName} className="h-9 w-9 shrink-0 rounded-full object-cover" />
+              <Image
+                src={userProfilePicUrl}
+                alt={userName}
+                width={36}
+                height={36}
+                className="h-9 w-9 shrink-0 rounded-full object-cover"
+              />
             ) : (
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-plum font-heading text-sm font-semibold text-white">
                 {initial}
@@ -79,8 +85,13 @@ export default function UserMenu({ userName, userCourse, userYearOfStudy, userPr
         className="flex items-center"
       >
         {userProfilePicUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={userProfilePicUrl} alt={userName} className="h-8 w-8 shrink-0 rounded-full object-cover" />
+          <Image
+            src={userProfilePicUrl}
+            alt={userName}
+            width={32}
+            height={32}
+            className="h-8 w-8 shrink-0 rounded-full object-cover"
+          />
         ) : (
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-plum font-heading text-[13px] font-semibold text-white">
             {initial}

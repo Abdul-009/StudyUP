@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { ArrowLeft, Paperclip, Smile } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createGroupMessage } from "./actions";
@@ -47,13 +48,15 @@ function formatTime(iso: string) {
 function Avatar({ member, size = 6.5 }: { member: MemberRecord; size?: number }) {
   const initial = (member.user?.name || member.user?.email || "?").charAt(0).toUpperCase();
   const dimension = `${size * 0.25}rem`;
+  const pixelSize = size * 4;
 
   if (member.user?.profilePicUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={member.user.profilePicUrl}
         alt={member.user.name}
+        width={pixelSize}
+        height={pixelSize}
         style={{ width: dimension, height: dimension }}
         className="rounded-full border-2 border-surface object-cover"
       />

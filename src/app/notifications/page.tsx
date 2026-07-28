@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { markNotificationAsRead } from "./actions";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -53,7 +53,7 @@ function NotificationRow({ notification }: { notification: NotificationRecord })
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await getAuthUser();
 
   if (error || !user) {
     redirect("/login");

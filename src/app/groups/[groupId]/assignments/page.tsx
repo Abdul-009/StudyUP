@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import CreateAssignmentModal from "./CreateAssignmentModal";
 import AssignmentsListClient from "./AssignmentsListClient";
 
@@ -7,7 +7,7 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
   const { groupId } = await params;
 
   const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await getAuthUser();
 
   if (error || !user) {
     redirect("/login");

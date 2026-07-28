@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { createAnnouncement } from "./actions";
 
 type AnnouncementRecord = {
@@ -17,7 +17,7 @@ type AnnouncementRecord = {
 export default async function GroupAnnouncementsPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await getAuthUser();
 
   if (error || !user) {
     redirect("/login");

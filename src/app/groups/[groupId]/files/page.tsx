@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { uploadGroupFile } from "./actions";
 
 type FileRecord = {
@@ -29,7 +29,7 @@ export default async function GroupFilesPage({
   const fileTypeFilter = typeof resolvedSearchParams.type === "string" ? resolvedSearchParams.type : "";
 
   const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await getAuthUser();
 
   if (error || !user) {
     redirect("/login");
