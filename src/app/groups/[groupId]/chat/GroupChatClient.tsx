@@ -656,7 +656,10 @@ export default function GroupChatClient({
                         </div>
                       </div>
                     )}
-                    <span className="mt-1 flex items-center gap-1 px-1 font-mono text-[11px] text-muted">
+                    <span
+                      suppressHydrationWarning
+                      className="mt-1 flex items-center gap-1 px-1 font-mono text-[11px] text-muted"
+                    >
                       {formatTime(message.createdAt)}
                       {isOwn && !isDeleted && seenCount > 0 ? (
                         <span className="inline-flex items-center gap-0.5 font-sans text-brand">
