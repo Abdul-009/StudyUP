@@ -13,6 +13,19 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Baseline hardening on every response. (Vercel already forces HTTPS.)
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+          },
+        ],
+      },
+      {
         // The push service worker must never be cached, or opted-in users get
         // stuck on a stale version after a deploy.
         source: "/sw.js",
