@@ -52,6 +52,11 @@ export default function Sidebar({
     },
   ];
 
+  // On mobile, notifications lives in the top bar next to the profile — keep it
+  // out of the bottom tab bar so that row stays uncrowded.
+  const mobileTabItems = navItems.filter((item) => item.key !== "notifications");
+  const notificationsActive = pathname === "/notifications";
+
   return (
     <>
       {/* Desktop sidebar: primary nav only - the user menu now lives in the top-right topbar */}
@@ -83,24 +88,39 @@ export default function Sidebar({
         </nav>
       </aside>
 
-      {/* Mobile top header: logo left, user menu top-right */}
+      {/* Mobile top header: logo left, notifications + user menu top-right */}
       <header className="flex items-center justify-between border-b border-border bg-paper-alt px-4 py-3 md:hidden">
         <Link href="/home" className="block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.svg" alt="StudyUp" width={122} height={28} className="h-7 w-auto" />
         </Link>
 
-        <UserMenu
-          userName={userName}
-          userCourse={userCourse}
-          userYearOfStudy={userYearOfStudy}
-          userProfilePicUrl={userProfilePicUrl}
-        />
+        <div className="flex items-center gap-1">
+          <Link
+            href="/notifications"
+            aria-label="Notifications"
+            className={`relative rounded-full p-2 transition-colors ${
+              notificationsActive ? "text-brand" : "text-muted hover:text-foreground"
+            }`}
+          >
+            <Bell size={20} strokeWidth={2} />
+            <span className="pointer-events-none absolute -right-0.5 -top-0.5">
+              <NotificationBadge userId={userId} initialUnreadCount={unreadCount} />
+            </span>
+          </Link>
+
+          <UserMenu
+            userName={userName}
+            userCourse={userCourse}
+            userYearOfStudy={userYearOfStudy}
+            userProfilePicUrl={userProfilePicUrl}
+          />
+        </div>
       </header>
 
-      {/* Mobile bottom tab bar: the 5 main nav icons only */}
+      {/* Mobile bottom tab bar: the 5 main nav icons (notifications is in the header) */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-border bg-surface md:hidden">
-        {navItems.map((item) => (
+        {mobileTabItems.map((item) => (
           <Link
             key={item.key}
             href={item.href}
@@ -110,9 +130,6 @@ export default function Sidebar({
             }`}
           >
             <item.Icon size={22} strokeWidth={2} />
-            {item.key === "notifications" && unreadCount > 0 ? (
-              <span className="absolute right-[27%] top-1.5 h-2 w-2 rounded-full bg-coral" />
-            ) : null}
           </Link>
         ))}
       </nav>
