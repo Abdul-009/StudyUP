@@ -6,7 +6,6 @@ import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { joinGroupFromForm } from "./actions";
 import CreateGroupModal from "./CreateGroupModal";
 import PublicGroupsSearch from "./PublicGroupsSearch";
-import { MAX_GROUPS_PER_USER } from "@/lib/groups";
 
 const PUBLIC_GROUPS_PAGE_SIZE = 5;
 
@@ -129,7 +128,6 @@ export default async function HomePage({
     { data: publicGroups },
     { count: publicGroupsCount },
     { data: privateGroups },
-    { count: createdGroupCount },
   ] = await Promise.all([
     supabase.from("Group").select("id, name, description, accentColor").in("id", idFilterOrPlaceholder),
     supabase.from("GroupMember").select("groupId, userId").in("groupId", idFilterOrPlaceholder),
@@ -141,10 +139,7 @@ export default async function HomePage({
     publicGroupsQuery,
     publicGroupsCountQuery,
     supabase.from("Group").select("id, name, description").eq("isPrivate", true).neq("createdBy", user.id),
-    supabase.from("Group").select("id", { count: "exact", head: true }).eq("createdBy", user.id),
   ]);
-
-  const atGroupLimit = (createdGroupCount ?? 0) >= MAX_GROUPS_PER_USER;
 
   const memberUserIds = Array.from(new Set((allMemberRows ?? []).map((row) => row.userId)));
   let userMap: Record<string, AvatarMember> = {};
@@ -199,7 +194,7 @@ export default async function HomePage({
             {unreadGroupCount > 0 ? ` · ${unreadGroupCount} with unread messages` : ""}
           </p>
         </div>
-        <CreateGroupModal variant="button" atLimit={atGroupLimit} limit={MAX_GROUPS_PER_USER} />
+        <CreateGroupModal variant="button" />
       </div>
 
       <form method="get" className="mt-6 flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-[11px]">
@@ -257,7 +252,7 @@ export default async function HomePage({
           </Link>
         ))}
 
-        <CreateGroupModal variant="card" atLimit={atGroupLimit} limit={MAX_GROUPS_PER_USER} />
+        <CreateGroupModal variant="card" />
       </div>
 
       <section className="mt-8 rounded-xl border border-border bg-surface p-6">

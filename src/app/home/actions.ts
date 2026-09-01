@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { leastUsedColor } from "@/lib/groupColors";
-import { MAX_GROUPS_PER_USER } from "@/lib/groups";
 
 function randomCode(length = 6) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -29,10 +28,6 @@ export async function createGroup(formData: FormData) {
   }
 
   const { data: myGroups } = await supabase.from("Group").select("accentColor").eq("createdBy", user.id);
-
-  if ((myGroups ?? []).length >= MAX_GROUPS_PER_USER) {
-    throw new Error(`You can only create up to ${MAX_GROUPS_PER_USER} groups.`);
-  }
 
   const { data: group, error: groupError } = await supabase
     .from("Group")

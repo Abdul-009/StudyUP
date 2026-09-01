@@ -6,31 +6,10 @@ import { createGroup } from "./actions";
 
 type CreateGroupModalProps = {
   variant: "button" | "card";
-  atLimit?: boolean;
-  limit?: number;
 };
 
-export default function CreateGroupModal({ variant, atLimit = false, limit = 4 }: CreateGroupModalProps) {
+export default function CreateGroupModal({ variant }: CreateGroupModalProps) {
   const [open, setOpen] = useState(false);
-
-  if (atLimit) {
-    return variant === "button" ? (
-      <button
-        type="button"
-        disabled
-        title={`You can create up to ${limit} groups`}
-        className="flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-[10px] bg-brand/40 px-[18px] py-2.5 text-[13.5px] font-semibold text-white"
-      >
-        <Plus size={16} />
-        New group
-      </button>
-    ) : (
-      <div className="flex min-h-[118px] w-full flex-col items-center justify-center gap-1 rounded-[20px] border-[1.5px] border-dashed border-border px-4 text-center text-[13px] font-medium text-muted">
-        <span className="font-semibold">Group limit reached</span>
-        <span>You can create up to {limit} groups.</span>
-      </div>
-    );
-  }
 
   return (
     <>
