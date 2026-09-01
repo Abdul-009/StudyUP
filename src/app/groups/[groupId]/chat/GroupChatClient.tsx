@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
-import { ArrowLeft, Paperclip, Smile, Trash2, X, MessageCircle, Check, CheckCheck } from "lucide-react";
+import { ArrowLeft, Paperclip, Smile, Trash2, X, MessageCircle, Check, CheckCheck, Settings } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { createGroupMessage, deleteMessage, setGroupMessageRead } from "./actions";
@@ -495,10 +495,17 @@ export default function GroupChatClient({
             {members.length} member{members.length === 1 ? "" : "s"}
           </p>
         </div>
+        <Link
+          href={`/groups/${groupId}/settings`}
+          aria-label="Group settings"
+          className="ml-auto shrink-0 rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-recessed hover:text-foreground"
+        >
+          <Settings size={18} />
+        </Link>
         <button
           type="button"
           onClick={() => setShowMembers(!showMembers)}
-          className="ml-auto flex -space-x-2 hover:opacity-70 transition-opacity"
+          className="flex -space-x-2 hover:opacity-70 transition-opacity"
         >
           {members.slice(0, 5).map((member) => (
             <Avatar key={member.id} member={member} />
