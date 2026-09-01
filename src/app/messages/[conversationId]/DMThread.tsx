@@ -2,9 +2,16 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
-import { ArrowLeft, Paperclip, Smile, Trash2, X } from "lucide-react";
+import { ArrowLeft, Paperclip, Smile, Trash2, X, Check, CheckCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { sendDirectMessage, deleteDirectMessage } from "@/lib/direct-message-actions";
+import {
+  sendDirectMessage,
+  deleteDirectMessage,
+  setDirectMessageRead,
+} from "@/lib/direct-message-actions";
+import { uploadChatAttachment, type ChatAttachment } from "@/lib/chat-attachments";
+import EmojiPicker from "@/components/EmojiPicker";
+import MessageAttachment from "@/components/MessageAttachment";
 
 type DirectMessageRecord = {
   id: string;
@@ -15,6 +22,10 @@ type DirectMessageRecord = {
   isDeleted: boolean;
   deletedAt: string | null;
   createdAt: string;
+  attachmentUrl: string | null;
+  attachmentType: string | null;
+  attachmentName: string | null;
+  attachmentSize: number | null;
   replyTo?: {
     id: string;
     content: string | null;
@@ -31,16 +42,23 @@ type UserInfo = {
   profilePicUrl: string | null;
 };
 
+type ReadRecord = { messageId: string; userId: string };
+
 type DMThreadProps = {
   conversationId: string;
   currentUserId: string;
   currentUserName: string;
   otherUser: UserInfo | null;
   initialMessages: DirectMessageRecord[];
+  initialReads: ReadRecord[];
 };
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function readKey(messageId: string, userId: string) {
+  return `${messageId}:${userId}`;
 }
 
 export default function DMThread({
@@ -49,15 +67,44 @@ export default function DMThread({
   currentUserName,
   otherUser,
   initialMessages,
+  initialReads,
 }: DMThreadProps) {
   const [messages, setMessages] = useState<DirectMessageRecord[]>(initialMessages);
+  const [readKeys, setReadKeys] = useState<Set<string>>(
+    () => new Set(initialReads.map((r) => readKey(r.messageId, r.userId))),
+  );
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<DirectMessageRecord | null>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const supabase = useMemo(() => createClient(), []);
+
+  // Keep the newest message in view, the way a messaging app does.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [messages.length]);
+
+  function resizeTextarea() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }
+
+  function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  }
 
   function senderNameFor(senderId: string) {
     return senderId === currentUserId ? currentUserName : otherUser?.name || "Unknown";
@@ -147,6 +194,43 @@ export default function DMThread({
       },
     );
 
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "DirectMessageRead",
+        filter: `conversationId=eq.${conversationId}`,
+      },
+      (payload) => {
+        const row = payload.new as ReadRecord;
+        setReadKeys((prev) => {
+          const next = new Set(prev);
+          next.add(readKey(row.messageId, row.userId));
+          return next;
+        });
+      },
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "DirectMessageRead",
+        filter: `conversationId=eq.${conversationId}`,
+      },
+      (payload) => {
+        const row = payload.old as Partial<ReadRecord>;
+        if (!row.messageId || !row.userId) return;
+        setReadKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(readKey(row.messageId as string, row.userId as string));
+          return next;
+        });
+      },
+    );
+
     channel.subscribe();
 
     return () => {
@@ -154,11 +238,79 @@ export default function DMThread({
     };
   }, [conversationId, supabase]);
 
+  function iHaveRead(messageId: string) {
+    return readKeys.has(readKey(messageId, currentUserId));
+  }
+
+  function otherHasRead(messageId: string) {
+    return otherUser ? readKeys.has(readKey(messageId, otherUser.id)) : false;
+  }
+
+  async function handleToggleRead(message: DirectMessageRecord) {
+    const currentlyRead = iHaveRead(message.id);
+    const key = readKey(message.id, currentUserId);
+    setReadKeys((prev) => {
+      const next = new Set(prev);
+      if (currentlyRead) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+    try {
+      await setDirectMessageRead(message.id, conversationId, !currentlyRead);
+    } catch (err) {
+      setReadKeys((prev) => {
+        const next = new Set(prev);
+        if (currentlyRead) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+      setError(err instanceof Error ? err.message : "Couldn't update read status.");
+    }
+  }
+
+  function insertEmoji(emoji: string) {
+    const el = textareaRef.current;
+    if (el && typeof el.selectionStart === "number") {
+      const start = el.selectionStart;
+      const end = el.selectionEnd ?? start;
+      setDraft((prev) => prev.slice(0, start) + emoji + prev.slice(end));
+      requestAnimationFrame(() => {
+        el.focus();
+        const caret = start + emoji.length;
+        el.setSelectionRange(caret, caret);
+        resizeTextarea();
+      });
+    } else {
+      setDraft((prev) => prev + emoji);
+    }
+  }
+
+  async function handleFilePicked(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setError(null);
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      formData.set("scope", `dm:${conversationId}`);
+      const uploaded = await uploadChatAttachment(formData);
+      setPendingAttachment(uploaded);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't upload that file.");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = draft.trim();
+    const attachment = pendingAttachment;
 
-    if (!trimmed || isSending) {
+    if ((!trimmed && !attachment) || isSending || isUploading) {
       return;
     }
 
@@ -171,22 +323,29 @@ export default function DMThread({
       id: `pending-${Date.now()}`,
       conversationId,
       senderId: currentUserId,
-      content: trimmed,
+      content: trimmed || null,
       createdAt: new Date().toISOString(),
       replyToId: replyContext?.id || null,
       isDeleted: false,
       deletedAt: null,
+      attachmentUrl: attachment?.url ?? null,
+      attachmentType: attachment?.type ?? null,
+      attachmentName: attachment?.name ?? null,
+      attachmentSize: attachment?.size ?? null,
       replyTo: optimisticReplyTo,
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
     setDraft("");
+    setPendingAttachment(null);
+    requestAnimationFrame(resizeTextarea);
 
     try {
       const savedRow = (await sendDirectMessage(
         conversationId,
         trimmed,
         replyContext?.id,
+        attachment,
       )) as DirectMessageRecord;
       // The action returns a raw row with no `replyTo` join — re-attach the quote.
       const savedMessage: DirectMessageRecord = { ...savedRow, replyTo: optimisticReplyTo };
@@ -285,6 +444,8 @@ export default function DMThread({
               const isOwn = message.senderId === currentUserId;
               const isDeleted = message.isDeleted;
               const replyTo = message.replyTo;
+              const mineIsRead = !isOwn && !isDeleted ? iHaveRead(message.id) : false;
+              const showSeen = isOwn && !isDeleted && otherHasRead(message.id);
 
               return (
                 <div
@@ -296,7 +457,7 @@ export default function DMThread({
                     isOwn ? "ml-auto flex-row-reverse" : "flex-row"
                   } transition-all rounded`}
                 >
-                  <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                  <div className={`flex min-w-0 flex-col ${isOwn ? "items-end" : "items-start"}`}>
                     {replyTo ? (
                       <button
                         type="button"
@@ -309,7 +470,7 @@ export default function DMThread({
                         <p className="line-clamp-2 text-[12px] text-muted">
                           {replyTo.isDeleted
                             ? "Original message was deleted"
-                            : replyTo.content}
+                            : replyTo.content || "📎 Attachment"}
                         </p>
                       </button>
                     ) : null}
@@ -318,13 +479,26 @@ export default function DMThread({
                         <p>This message was deleted</p>
                       </div>
                     ) : (
-                      <div className="relative flex items-start gap-2">
+                      <div className="relative flex min-w-0 items-start gap-2">
                         <div
-                          className={`rounded-2xl px-[15px] py-2.5 text-sm leading-[1.45] ${
+                          className={`min-w-0 rounded-2xl px-[15px] py-2.5 text-sm leading-[1.45] ${
                             isOwn ? "bg-ink text-white" : "bg-surface-recessed text-foreground"
-                          }`}
+                          } ${!isOwn && !mineIsRead ? "ring-1 ring-coral/40" : ""}`}
                         >
-                          <p className="whitespace-pre-wrap">{message.content}</p>
+                          {message.attachmentUrl ? (
+                            <MessageAttachment
+                              url={message.attachmentUrl}
+                              type={message.attachmentType}
+                              name={message.attachmentName}
+                              size={message.attachmentSize}
+                              onDark={isOwn}
+                            />
+                          ) : null}
+                          {message.content ? (
+                            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                              {message.content}
+                            </p>
+                          ) : null}
                         </div>
                         <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                           <button
@@ -335,6 +509,19 @@ export default function DMThread({
                           >
                             <ArrowLeft size={16} className="rotate-180" />
                           </button>
+                          {!isOwn ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleRead(message)}
+                              aria-label={mineIsRead ? "Mark as unread" : "Mark as read"}
+                              title={mineIsRead ? "Mark as unread" : "Mark as read"}
+                              className={`shrink-0 rounded-lg p-1.5 hover:bg-surface-recessed ${
+                                mineIsRead ? "text-brand" : "text-muted hover:text-foreground"
+                              }`}
+                            >
+                              {mineIsRead ? <CheckCheck size={16} /> : <Check size={16} />}
+                            </button>
+                          ) : null}
                           {isOwn ? (
                             <button
                               type="button"
@@ -349,8 +536,14 @@ export default function DMThread({
                         </div>
                       </div>
                     )}
-                    <span className="mt-1 px-1 font-mono text-[11px] text-muted">
+                    <span className="mt-1 flex items-center gap-1 px-1 font-mono text-[11px] text-muted">
                       {formatTime(message.createdAt)}
+                      {showSeen ? (
+                        <span className="inline-flex items-center gap-0.5 font-sans text-brand">
+                          <CheckCheck size={12} />
+                          Seen
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                 </div>
@@ -359,6 +552,7 @@ export default function DMThread({
           ) : (
             <p className="text-sm text-muted">No messages yet. Start the conversation!</p>
           )}
+          <div ref={bottomRef} />
         </div>
 
         {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
@@ -370,7 +564,9 @@ export default function DMThread({
                 Replying to {replyingTo.senderId === currentUserId ? "yourself" : "them"}
               </p>
               <p className="line-clamp-1 text-[12px] text-muted">
-                {replyingTo.isDeleted ? "Original message was deleted" : replyingTo.content}
+                {replyingTo.isDeleted
+                  ? "Original message was deleted"
+                  : replyingTo.content || "📎 Attachment"}
               </p>
             </div>
             <button
@@ -384,26 +580,88 @@ export default function DMThread({
           </div>
         ) : null}
 
+        {isUploading || pendingAttachment ? (
+          <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-surface-recessed px-3 py-2">
+            {isUploading ? (
+              <p className="flex-1 text-[12px] text-muted">Uploading…</p>
+            ) : (
+              <>
+                {pendingAttachment && pendingAttachment.type.startsWith("image/") ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={pendingAttachment.url}
+                    alt={pendingAttachment.name}
+                    className="h-10 w-10 shrink-0 rounded object-cover"
+                  />
+                ) : (
+                  <Paperclip size={16} className="shrink-0 text-muted" />
+                )}
+                <p className="flex-1 truncate text-[12px] text-foreground">
+                  {pendingAttachment?.name}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPendingAttachment(null)}
+                  aria-label="Remove attachment"
+                  className="shrink-0 rounded-lg p-1 text-muted hover:bg-border hover:text-foreground"
+                >
+                  <X size={16} />
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
+
         <form
           onSubmit={handleSubmit}
-          className="mt-4 flex items-center gap-2 rounded-full border border-border bg-surface-recessed py-[10px] pl-[18px] pr-[10px]"
+          className="relative mt-4 flex items-end gap-2 rounded-3xl border border-border bg-surface-recessed py-[10px] pl-[18px] pr-[10px]"
         >
-          <button type="button" aria-label="Attach file" className="shrink-0 text-muted hover:text-foreground">
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFilePicked}
+            className="hidden"
+            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.md,.rtf,.zip,.json"
+          />
+          <button
+            type="button"
+            aria-label="Attach file"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="mb-1 shrink-0 text-muted hover:text-foreground disabled:opacity-50"
+          >
             <Paperclip size={18} />
           </button>
-          <button type="button" aria-label="Add emoji" className="shrink-0 text-muted hover:text-foreground">
+          <button
+            type="button"
+            aria-label="Add emoji"
+            onClick={() => setShowEmoji((value) => !value)}
+            className={`mb-1 shrink-0 hover:text-foreground ${showEmoji ? "text-brand" : "text-muted"}`}
+          >
             <Smile size={18} />
           </button>
-          <input
+          {showEmoji ? (
+            <EmojiPicker
+              onSelect={(emoji) => insertEmoji(emoji)}
+              onClose={() => setShowEmoji(false)}
+            />
+          ) : null}
+          <textarea
+            ref={textareaRef}
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              resizeTextarea();
+            }}
+            onKeyDown={handleComposerKeyDown}
+            rows={1}
             placeholder="Write a message"
-            className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted focus:outline-none"
+            className="min-w-0 flex-1 resize-none self-center bg-transparent py-1 text-sm leading-[1.45] text-foreground placeholder:text-muted focus:outline-none"
           />
           <button
             type="submit"
-            disabled={isSending}
-            className="shrink-0 rounded-full bg-ink px-5 py-[9px] text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isSending || isUploading}
+            className="mb-0.5 shrink-0 rounded-full bg-ink px-5 py-[9px] text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSending ? "Sending..." : "Send"}
           </button>

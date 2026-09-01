@@ -3,6 +3,7 @@ import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { updateNotificationPreferences } from "./actions";
 import ChangePasswordForm from "./ChangePasswordForm";
 import LogoutButton from "./LogoutButton";
+import PushToggle from "@/components/PushToggle";
 
 const NOTIF_TYPES = ["NEW_MESSAGE", "NEW_ASSIGNMENT", "POLL_UPDATE", "ANNOUNCEMENT"] as const;
 
@@ -49,6 +50,11 @@ export default async function SettingsPage() {
           ))}
           <button className="rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">Save preferences</button>
         </form>
+      </section>
+
+      <section className="mt-6 rounded-xl border border-border bg-surface p-6">
+        <h2 className="text-lg font-semibold text-foreground">Device notifications</h2>
+        <PushToggle />
       </section>
 
       <section className="mt-6 rounded-xl border border-border bg-surface p-6">

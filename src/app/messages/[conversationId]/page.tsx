@@ -11,6 +11,10 @@ type DirectMessageRow = {
   isDeleted: boolean;
   deletedAt: string | null;
   createdAt: string;
+  attachmentUrl: string | null;
+  attachmentType: string | null;
+  attachmentName: string | null;
+  attachmentSize: number | null;
 };
 
 type UserRow = {
@@ -63,7 +67,9 @@ export default async function DMThreadPage({
   // Fetch messages
   const { data: messages } = await supabase
     .from("DirectMessage")
-    .select("id, conversationId, senderId, content, replyToId, isDeleted, deletedAt, createdAt")
+    .select(
+      "id, conversationId, senderId, content, replyToId, isDeleted, deletedAt, createdAt, attachmentUrl, attachmentType, attachmentName, attachmentSize",
+    )
     .eq("conversationId", conversationId)
     .order("createdAt", { ascending: true });
 
@@ -114,6 +120,15 @@ export default async function DMThreadPage({
     replyTo: msg.replyToId ? replyToMessages[msg.replyToId] : null,
   }));
 
+  // Read receipts for this thread (one row = a participant read a message).
+  const threadMessageIds = (messages ?? []).map((msg) => msg.id);
+  const { data: readRows } = threadMessageIds.length
+    ? await supabase
+        .from("DirectMessageRead")
+        .select("messageId, userId")
+        .in("messageId", threadMessageIds)
+    : { data: [] as { messageId: string; userId: string }[] };
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6 md:px-11 md:py-9">
       <DMThread
@@ -122,6 +137,7 @@ export default async function DMThreadPage({
         currentUserName={currentUserName}
         otherUser={otherUser}
         initialMessages={messagesWithReplies}
+        initialReads={readRows ?? []}
       />
     </main>
   );

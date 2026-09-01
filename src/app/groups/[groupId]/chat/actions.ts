@@ -2,8 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendPushToUsers } from "@/lib/push";
+import type { ChatAttachment } from "@/lib/chat-attachments";
 
-export async function createGroupMessage(groupId: string, content: string, replyToId?: string) {
+export async function createGroupMessage(
+  groupId: string,
+  content: string,
+  replyToId?: string,
+  attachment?: ChatAttachment | null,
+) {
   const supabase = await createClient();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -12,7 +19,7 @@ export async function createGroupMessage(groupId: string, content: string, reply
   }
 
   const trimmedContent = content.trim();
-  if (!trimmedContent) {
+  if (!trimmedContent && !attachment) {
     throw new Error("Message content is required.");
   }
 
@@ -59,29 +66,43 @@ export async function createGroupMessage(groupId: string, content: string, reply
     .insert({
       groupId,
       userId: user.id,
-      content: trimmedContent,
+      content: trimmedContent || null,
       replyToId: replyToId || null,
+      attachmentUrl: attachment?.url ?? null,
+      attachmentType: attachment?.type ?? null,
+      attachmentName: attachment?.name ?? null,
+      attachmentSize: attachment?.size ?? null,
     })
-    .select("id, groupId, userId, content, createdAt, editedAt, isDeleted, deletedAt, replyToId")
+    .select(
+      "id, groupId, userId, content, createdAt, editedAt, isDeleted, deletedAt, replyToId, attachmentUrl, attachmentType, attachmentName, attachmentSize",
+    )
     .single();
 
   if (messageError || !message) {
     throw new Error(messageError?.message || "Failed to send message.");
   }
 
-  const preview = trimmedContent.replace(/\s+/g, " ").slice(0, 80);
-  const previewText = trimmedContent.length > 80 ? `${preview}…` : preview;
+  const attachmentLabel = attachment
+    ? attachment.type.startsWith("image/")
+      ? "📷 Photo"
+      : `📎 ${attachment.name}`
+    : "";
+  const base = trimmedContent || attachmentLabel;
+  const preview = base.replace(/\s+/g, " ").slice(0, 80);
+  const previewText = base.length > 80 ? `${preview}…` : preview;
 
   const { data: members } = await supabase.from("GroupMember").select("userId").eq("groupId", groupId);
-  const notifications = (members ?? [])
-    .filter((member) => member.userId !== user.id)
-    .map((member) => ({
-      userId: member.userId,
-      type: "NEW_MESSAGE",
-      groupId,
-      refId: message.id,
-      content: `New message in ${group.name}: ${previewText}`,
-    }));
+  const recipientIds = (members ?? [])
+    .map((member) => member.userId)
+    .filter((memberId) => memberId !== user.id);
+
+  const notifications = recipientIds.map((memberId) => ({
+    userId: memberId,
+    type: "NEW_MESSAGE",
+    groupId,
+    refId: message.id,
+    content: `New message in ${group.name}: ${previewText}`,
+  }));
 
   if (notifications.length) {
     const { error: notificationError } = await supabase.from("Notification").insert(notifications);
@@ -90,8 +111,71 @@ export async function createGroupMessage(groupId: string, content: string, reply
     }
   }
 
+  // Device push (best-effort — never blocks or fails the send).
+  await sendPushToUsers(recipientIds, {
+    title: group.name,
+    body: previewText,
+    url: `/groups/${groupId}/chat`,
+    tag: `group-${groupId}`,
+  });
+
   revalidatePath(`/groups/${groupId}/chat`);
   return message;
+}
+
+export async function setGroupMessageRead(messageId: string, read: boolean) {
+  const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("You must be signed in.");
+  }
+
+  const { data: message, error: messageError } = await supabase
+    .from("Message")
+    .select("id, groupId, userId")
+    .eq("id", messageId)
+    .maybeSingle();
+
+  if (messageError || !message) {
+    throw new Error("Message not found.");
+  }
+
+  // Marking your own message read is meaningless; block it so "Seen" stays
+  // strictly "seen by someone else".
+  if (message.userId === user.id) {
+    throw new Error("You can't mark your own message as read.");
+  }
+
+  const { data: membership } = await supabase
+    .from("GroupMember")
+    .select("id")
+    .eq("groupId", message.groupId)
+    .eq("userId", user.id)
+    .maybeSingle();
+
+  if (!membership) {
+    throw new Error("You must be a member of this group.");
+  }
+
+  if (read) {
+    const { error } = await supabase
+      .from("MessageRead")
+      .upsert(
+        { messageId, groupId: message.groupId, userId: user.id },
+        { onConflict: "messageId,userId" },
+      );
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase
+      .from("MessageRead")
+      .delete()
+      .eq("messageId", messageId)
+      .eq("userId", user.id);
+    if (error) throw new Error(error.message);
+  }
+
+  return { ok: true };
 }
 
 export async function deleteMessage(messageId: string, groupId: string) {
@@ -122,9 +206,15 @@ export async function deleteMessage(messageId: string, groupId: string) {
       isDeleted: true,
       deletedAt: new Date().toISOString(),
       content: null,
+      attachmentUrl: null,
+      attachmentType: null,
+      attachmentName: null,
+      attachmentSize: null,
     })
     .eq("id", messageId)
-    .select("id, groupId, userId, content, createdAt, editedAt, isDeleted, deletedAt")
+    .select(
+      "id, groupId, userId, content, createdAt, editedAt, isDeleted, deletedAt, attachmentUrl, attachmentType, attachmentName, attachmentSize",
+    )
     .single();
 
   if (updateError || !updatedMessage) {

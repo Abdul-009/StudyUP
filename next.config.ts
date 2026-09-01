@@ -10,6 +10,19 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async headers() {
+    return [
+      {
+        // The push service worker must never be cached, or opted-in users get
+        // stuck on a stale version after a deploy.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+    ];
+  },
   experimental: {
     serverActions: {
       // Group file uploads allow up to 10MB; leave headroom for multipart overhead.

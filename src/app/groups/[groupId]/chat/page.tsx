@@ -12,6 +12,10 @@ type MessageRecord = {
   isDeleted: boolean;
   deletedAt: string | null;
   replyToId: string | null;
+  attachmentUrl: string | null;
+  attachmentType: string | null;
+  attachmentName: string | null;
+  attachmentSize: number | null;
   replyTo?: {
     id: string;
     content: string | null;
@@ -99,7 +103,9 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
 
   const { data: messages } = await supabase
     .from("Message")
-    .select("id, groupId, userId, content, createdAt, editedAt, isDeleted, deletedAt, replyToId")
+    .select(
+      "id, groupId, userId, content, createdAt, editedAt, isDeleted, deletedAt, replyToId, attachmentUrl, attachmentType, attachmentName, attachmentSize",
+    )
     .eq("groupId", groupId)
     .order("createdAt", { ascending: true });
 
@@ -161,6 +167,15 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
     replyTo: msg.replyToId ? replyToMessages[msg.replyToId] : null,
   })) as MessageRecord[] | null;
 
+  // Read receipts for every message in this thread (one row = user read message).
+  const threadMessageIds = (messages ?? []).map((msg) => msg.id);
+  const { data: readRows } = threadMessageIds.length
+    ? await supabase
+        .from("MessageRead")
+        .select("messageId, userId")
+        .in("messageId", threadMessageIds)
+    : { data: [] as { messageId: string; userId: string }[] };
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6 md:px-11 md:py-9">
       <div className="mb-4 flex items-end justify-between gap-4 md:mb-7">
@@ -178,6 +193,7 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
         currentUserId={user.id}
         initialMessages={(messagesWithReplies ?? []) as MessageRecord[]}
         initialMembers={members}
+        initialReads={readRows ?? []}
       />
     </main>
   );

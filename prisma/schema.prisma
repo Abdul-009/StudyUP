@@ -52,6 +52,9 @@ model User {
   dmThreadsAsA    DirectConversation[] @relation("DMThreadsAsA")
   dmThreadsAsB    DirectConversation[] @relation("DMThreadsAsB")
   directMessages  DirectMessage[]
+  pushSubscriptions  PushSubscription[]
+  messageReads       MessageRead[]
+  directMessageReads DirectMessageRead[]
 }
 
 model Group {
@@ -98,11 +101,16 @@ model Message {
   isDeleted Boolean  @default(false)
   deletedAt DateTime?
   replyToId String?  @db.Uuid
+  attachmentUrl  String? // public URL in the "chat-attachments" storage bucket
+  attachmentType String? // MIME type, e.g. "image/png" or "application/pdf"
+  attachmentName String?
+  attachmentSize Int?
 
   group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   replyTo   Message? @relation("MessageReplies", fields: [replyToId], references: [id])
   replies   Message[] @relation("MessageReplies")
+  reads     MessageRead[]
 }
 
 model SharedFile {
@@ -240,9 +248,56 @@ model DirectMessage {
   isDeleted      Boolean             @default(false)
   deletedAt      DateTime?
   createdAt      DateTime            @default(now())
+  attachmentUrl  String?             // public URL in the "chat-attachments" storage bucket
+  attachmentType String?             // MIME type, e.g. "image/png" or "application/pdf"
+  attachmentName String?
+  attachmentSize Int?
 
   conversation   DirectConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
   replyTo        DirectMessage?      @relation("DMReplies", fields: [replyToId], references: [id])
   replies        DirectMessage[]     @relation("DMReplies")
+  reads          DirectMessageRead[]
+}
+
+model PushSubscription {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MessageRead {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId String   @db.Uuid
+  groupId   String   @db.Uuid // denormalized so Realtime can filter by group
+  userId    String   @db.Uuid
+  readAt    DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([groupId])
+}
+
+model DirectMessageRead {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId      String        @db.Uuid
+  conversationId String        @db.Uuid // denormalized so Realtime can filter by conversation
+  userId         String        @db.Uuid
+  readAt         DateTime      @default(now())
+
+  message        DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([conversationId])
 }

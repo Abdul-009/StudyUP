@@ -21,6 +21,10 @@ type MessageRecord = {
   isDeleted: boolean;
   deletedAt: string | null;
   replyToId: string | null;
+  attachmentUrl: string | null;
+  attachmentType: string | null;
+  attachmentName: string | null;
+  attachmentSize: number | null;
   replyTo?: {
     id: string;
     content: string | null;
@@ -43,6 +47,8 @@ type MemberRecord = {
   } | null;
 };
 
+type ReadRecord = { messageId: string; userId: string };
+
 type ChatLayoutProps = {
   sidebarGroups: SidebarGroup[];
   activeGroupId: string;
@@ -52,6 +58,7 @@ type ChatLayoutProps = {
   currentUserId: string;
   initialMessages: MessageRecord[];
   initialMembers: MemberRecord[];
+  initialReads: ReadRecord[];
 };
 
 export default function ChatLayout({
@@ -63,6 +70,7 @@ export default function ChatLayout({
   currentUserId,
   initialMessages,
   initialMembers,
+  initialReads,
 }: ChatLayoutProps) {
   // On mobile, only one panel is shown at a time; arriving at a group's chat
   // page shows the chat first, and the back button returns to the list.
@@ -81,6 +89,7 @@ export default function ChatLayout({
           currentUserId={currentUserId}
           initialMessages={initialMessages}
           initialMembers={initialMembers}
+          initialReads={initialReads}
           onBack={() => setShowList(true)}
         />
       </div>

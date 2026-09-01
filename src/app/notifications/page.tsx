@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
-import { markNotificationAsRead, markAllNotificationsAsRead } from "./actions";
+import { markNotificationAsRead, markAllNotificationsAsRead, clearAllNotifications } from "./actions";
 
 const TYPE_LABELS: Record<string, string> = {
   NEW_MESSAGE: "New message",
@@ -80,16 +80,28 @@ export default async function NotificationsPage() {
           <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Notifications</h1>
           <p className="mt-1 text-sm text-muted">{unread.length} unread</p>
         </div>
-        {unread.length > 0 ? (
-          <form action={markAllNotificationsAsRead}>
-            <button
-              type="submit"
-              className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition-colors"
-            >
-              Mark all as read
-            </button>
-          </form>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {unread.length > 0 ? (
+            <form action={markAllNotificationsAsRead}>
+              <button
+                type="submit"
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition-colors"
+              >
+                Mark all as read
+              </button>
+            </form>
+          ) : null}
+          {list.length > 0 ? (
+            <form action={clearAllNotifications}>
+              <button
+                type="submit"
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-muted hover:bg-border hover:text-foreground transition-colors"
+              >
+                Clear all
+              </button>
+            </form>
+          ) : null}
+        </div>
       </div>
 
       <section>

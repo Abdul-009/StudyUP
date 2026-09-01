@@ -76,3 +76,23 @@ export async function markAllNotificationsAsRead() {
 
   revalidatePath("/notifications");
 }
+
+export async function clearAllNotifications() {
+  const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("You must be signed in.");
+  }
+
+  const { error: deleteError } = await supabase
+    .from("Notification")
+    .delete()
+    .eq("userId", user.id);
+
+  if (deleteError) {
+    throw new Error(deleteError.message);
+  }
+
+  revalidatePath("/notifications");
+}
