@@ -74,10 +74,10 @@ export default async function NotificationsPage() {
   const read = list.filter((notification) => notification.isRead);
 
   return (
-    <main className="max-w-[720px] px-11 py-9">
-      <div className="mb-7 flex items-center justify-between gap-4">
+    <main className="max-w-[720px] px-4 py-6 md:px-11 md:py-9">
+      <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Notifications</h1>
+          <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground md:text-[32px]">Notifications</h1>
           <p className="mt-1 text-sm text-muted">{unread.length} unread</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

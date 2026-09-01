@@ -82,7 +82,7 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
     <div
       ref={ref}
-      className="absolute bottom-full left-0 z-20 mb-2 max-h-72 w-[300px] overflow-y-auto rounded-xl border border-border bg-surface p-3 shadow-lg"
+      className="absolute bottom-full left-0 z-20 mb-2 max-h-72 w-[300px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-surface p-3 shadow-lg"
       role="dialog"
       aria-label="Emoji picker"
     >

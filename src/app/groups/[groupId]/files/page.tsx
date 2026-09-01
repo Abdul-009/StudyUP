@@ -77,9 +77,9 @@ export default async function GroupFilesPage({
   }));
 
   return (
-    <main className="max-w-[820px] px-11 py-9">
+    <main className="max-w-[820px] px-4 py-6 md:px-11 md:py-9">
       <div className="mb-7">
-        <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Shared files</h1>
+        <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground md:text-[32px]">Shared files</h1>
         <p className="mt-1 text-sm text-muted">Upload documents and images, then browse them by type.</p>
       </div>
 
