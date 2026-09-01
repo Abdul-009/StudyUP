@@ -4,7 +4,6 @@ import "./globals.css";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import UserMenu from "@/components/UserMenu";
-import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -75,7 +74,6 @@ export default async function RootLayout({
       className={`${spaceGrotesk.variable} ${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
       <body className="flex h-dvh flex-col overflow-hidden md:flex-row">
-        {user ? <ServiceWorkerRegister /> : null}
         {user ? (
           <Sidebar
             userId={user.id}

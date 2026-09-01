@@ -50,5 +50,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Skip static/asset routes AND the service worker + web manifest — those must
+  // be served as plain files with no auth round-trip or Set-Cookie, or Chrome's
+  // SW update check can stall on a slow connection and fail scoped navigations.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

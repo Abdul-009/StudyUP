@@ -1,8 +1,18 @@
-/* Study Up service worker — Web Push only (no offline caching).
+/* Study Up service worker — Web Push only (no offline caching, no fetch handler
+ * so navigations always go straight to the network).
  *
  * Payload shape sent from src/lib/push.ts:
  *   { title: string, body: string, url?: string, tag?: string }
  */
+
+// Take control as soon as a new version is deployed, so a fixed worker replaces
+// a broken one without waiting for every tab to close.
+self.addEventListener("install", function () {
+  self.skipWaiting();
+});
+self.addEventListener("activate", function (event) {
+  event.waitUntil(self.clients.claim());
+});
 
 self.addEventListener("push", function (event) {
   let data = {};
