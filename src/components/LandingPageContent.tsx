@@ -154,8 +154,9 @@ export default function LandingPageContent() {
 
           {/* nav */}
           <nav className="relative mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
-            <Link href="/" className="font-heading text-lg font-bold text-white">
-              Study<span className="text-[#8fd24f]">Up</span>
+            <Link href="/" className="block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-light.svg" alt="StudyUp" width={132} height={30} className="h-[30px] w-auto" />
             </Link>
             <div className="hidden items-center gap-8 md:flex">
               <a href="#features" className="text-[13.5px] font-medium text-white/75 hover:text-white">
@@ -529,10 +530,9 @@ export default function LandingPageContent() {
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
             <div className="col-span-2 md:col-span-1">
-              <h3 className="font-heading text-lg font-bold text-foreground">
-                Study<span className="text-brand">Up</span>
-              </h3>
-              <p className="mt-2 max-w-xs text-sm text-ink-light">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.svg" alt="StudyUp" width={130} height={30} className="h-[30px] w-auto" />
+              <p className="mt-3 max-w-xs text-sm text-ink-light">
                 Built for students who actually want to get things done together.
               </p>
             </div>

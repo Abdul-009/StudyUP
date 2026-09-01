@@ -35,9 +35,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-4">
-      <p className="mb-6 font-heading text-xl font-bold text-foreground">
-        Study<span className="text-brand">Up</span>
-      </p>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.svg" alt="StudyUp" width={148} height={34} className="mb-6 h-[34px] w-auto" />
       <form onSubmit={handleSubmit} className="w-full space-y-4 rounded-[20px] border border-border bg-surface p-6 sm:p-7">
         <div>
           <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground">Reset password</h1>

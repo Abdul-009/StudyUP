@@ -56,8 +56,9 @@ export default function Sidebar({
     <>
       {/* Desktop sidebar: primary nav only - the user menu now lives in the top-right topbar */}
       <aside className="hidden w-[232px] shrink-0 flex-col gap-1 border-r border-border bg-paper-alt p-[18px] pt-7 md:flex">
-        <Link href="/home" className="mb-8 px-2.5 font-heading text-xl font-bold text-foreground">
-          Study<span className="text-brand">Up</span>
+        <Link href="/home" className="mb-8 block px-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="StudyUp" width={130} height={30} className="h-[30px] w-auto" />
         </Link>
 
         <nav className="flex flex-col gap-1">
@@ -84,8 +85,9 @@ export default function Sidebar({
 
       {/* Mobile top header: logo left, user menu top-right */}
       <header className="flex items-center justify-between border-b border-border bg-paper-alt px-4 py-3 md:hidden">
-        <Link href="/home" className="font-heading text-lg font-bold text-foreground">
-          Study<span className="text-brand">Up</span>
+        <Link href="/home" className="block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="StudyUp" width={122} height={28} className="h-7 w-auto" />
         </Link>
 
         <UserMenu

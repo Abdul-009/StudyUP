@@ -98,9 +98,8 @@ export default function SignupPage() {
     const inbox = inboxLinkForEmail(sentTo);
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-4">
-        <p className="mb-6 font-heading text-xl font-bold text-foreground">
-          Study<span className="text-brand">Up</span>
-        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="StudyUp" width={148} height={34} className="mb-6 h-[34px] w-auto" />
         <div className="w-full space-y-4 rounded-[20px] border border-border bg-surface p-6 text-center sm:p-7">
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand/10">
             <MailCheck className="h-6 w-6 text-brand" />

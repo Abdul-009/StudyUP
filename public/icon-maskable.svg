@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="StudyUp">
+  <rect width="512" height="512" fill="#1aa76b"/>
+  <g transform="translate(56,56) scale(0.78)">
+    <rect x="70" y="122" width="372" height="244" rx="54" fill="#ffffff"/>
+    <path d="M150 356 L150 432 L216 356 Z" fill="#ffffff"/>
+    <path d="M196 286 L256 202 L316 286" fill="none" stroke="#1aa76b" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

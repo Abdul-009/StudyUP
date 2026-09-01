@@ -25,8 +25,10 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Study Up",
-  description: "A collaborative study group experience built for Next.js and Supabase",
+  title: "StudyUp",
+  description: "Your study group's chat, files, assignments and scheduling in one place",
+  applicationName: "StudyUp",
+  appleWebApp: { capable: true, title: "StudyUp", statusBarStyle: "default" },
 };
 
 export default async function RootLayout({

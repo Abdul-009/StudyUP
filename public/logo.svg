@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 208 48" role="img" aria-label="StudyUp">
+  <g transform="translate(2,2)">
+    <rect width="44" height="44" rx="12" fill="#1aa76b"/>
+    <g transform="translate(3.6,3.2) scale(0.0718)">
+      <rect x="70" y="122" width="372" height="244" rx="54" fill="#ffffff"/>
+      <path d="M150 356 L150 432 L216 356 Z" fill="#ffffff"/>
+      <path d="M196 286 L256 202 L316 286" fill="none" stroke="#1aa76b" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <text x="56" y="32.5" font-family="'Space Grotesk', 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="25" font-weight="700" letter-spacing="-0.6">
+    <tspan fill="#1e2130">Study</tspan><tspan fill="#1aa76b">Up</tspan>
+  </text>
+</svg>
