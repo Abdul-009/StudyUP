@@ -49,6 +49,9 @@ model User {
   announcements   Announcement[] @relation("AnnouncementPostedBy")
   polls           Poll[]         @relation("PollCreatedBy")
   notificationPreferences NotificationPreference[]
+  dmThreadsAsA    DirectConversation[] @relation("DMThreadsAsA")
+  dmThreadsAsB    DirectConversation[] @relation("DMThreadsAsB")
+  directMessages  DirectMessage[]
 }
 
 model Group {
@@ -89,12 +92,17 @@ model Message {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId   String   @db.Uuid
   userId    String   @db.Uuid
-  content   String
+  content   String?  // nullable: cleared to NULL on soft delete
   createdAt DateTime @default(now())
   editedAt  DateTime?
+  isDeleted Boolean  @default(false)
+  deletedAt DateTime?
+  replyToId String?  @db.Uuid
 
   group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTo   Message? @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies   Message[] @relation("MessageReplies")
 }
 
 model SharedFile {
@@ -203,8 +211,38 @@ model Notification {
   refId     String?
   content   String
   isRead    Boolean  @default(false)
+  readAt    DateTime?
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   group     Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model DirectConversation {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userAId    String    @db.Uuid
+  userBId    String    @db.Uuid
+  createdAt  DateTime  @default(now())
+
+  userA      User      @relation("DMThreadsAsA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB      User      @relation("DMThreadsAsB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages   DirectMessage[]
+
+  @@unique([userAId, userBId])
+}
+
+model DirectMessage {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String              @db.Uuid
+  senderId       String              @db.Uuid
+  content        String?             // nullable: cleared to NULL on soft delete
+  replyToId      String?             @db.Uuid
+  isDeleted      Boolean             @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime            @default(now())
+
+  conversation   DirectConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo        DirectMessage?      @relation("DMReplies", fields: [replyToId], references: [id])
+  replies        DirectMessage[]     @relation("DMReplies")
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, MessageCircle, ListChecks, BarChart3, Bell } from "lucide-react";
+import { Home, MessageCircle, Mail, ListChecks, BarChart3, Bell } from "lucide-react";
 import NotificationBadge from "./NotificationBadge";
 import UserMenu from "./UserMenu";
 
@@ -34,6 +34,7 @@ export default function Sidebar({
   const navItems = [
     { key: "home", href: "/home", label: "Home", Icon: Home, isActive: pathname === "/home" },
     { key: "chat", href: groupHref("chat"), label: "Group Chat", Icon: MessageCircle, isActive: pathname.includes("/chat") },
+    { key: "messages", href: "/messages", label: "Messages", Icon: Mail, isActive: pathname.includes("/messages") },
     {
       key: "assignments",
       href: groupHref("assignments"),

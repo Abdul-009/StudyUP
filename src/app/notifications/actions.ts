@@ -35,9 +35,10 @@ export async function markNotificationAsRead(formData: FormData) {
     throw new Error("Notification not found.");
   }
 
+  const now = new Date().toISOString();
   const { error: updateError } = await supabase
     .from("Notification")
-    .update({ isRead: true })
+    .update({ isRead: true, readAt: now })
     .eq("id", notificationId)
     .eq("userId", user.id);
 
@@ -52,4 +53,26 @@ export async function markNotificationAsRead(formData: FormData) {
 
   revalidatePath("/notifications");
   redirect("/notifications");
+}
+
+export async function markAllNotificationsAsRead() {
+  const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("You must be signed in.");
+  }
+
+  const now = new Date().toISOString();
+  const { error: updateError } = await supabase
+    .from("Notification")
+    .update({ isRead: true, readAt: now })
+    .eq("userId", user.id)
+    .eq("isRead", false);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  revalidatePath("/notifications");
 }

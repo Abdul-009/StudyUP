@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
-import { markNotificationAsRead } from "./actions";
+import { markNotificationAsRead, markAllNotificationsAsRead } from "./actions";
 
 const TYPE_LABELS: Record<string, string> = {
   NEW_MESSAGE: "New message",
@@ -34,16 +34,20 @@ function NotificationRow({ notification }: { notification: NotificationRecord })
       <input type="hidden" name="notificationId" value={notification.id} />
       <button
         type="submit"
-        className="flex w-full items-center gap-4 rounded-xl border border-border border-l-4 bg-surface px-5 py-4 text-left"
+        className={`flex w-full items-center gap-4 rounded-xl border border-l-4 px-5 py-4 text-left transition-colors ${
+          notification.isRead
+            ? "border-border bg-surface-recessed opacity-75 hover:opacity-100"
+            : "border-border bg-surface hover:bg-border"
+        }`}
         style={{ borderLeftColor: accentColor }}
       >
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[15px] font-semibold text-foreground">
+          <h3 className={`truncate text-[15px] font-semibold ${notification.isRead ? "text-muted" : "text-foreground"}`}>
             {TYPE_LABELS[notification.type] || notification.type}
           </h3>
           <p className="truncate text-xs text-muted">{notification.content}</p>
         </div>
-        <span className="shrink-0 font-mono text-[12.5px] font-semibold text-foreground">
+        <span className="shrink-0 font-mono text-[12.5px] font-semibold text-muted">
           {new Date(notification.createdAt).toLocaleString()}
         </span>
       </button>
@@ -71,9 +75,21 @@ export default async function NotificationsPage() {
 
   return (
     <main className="max-w-[720px] px-11 py-9">
-      <div className="mb-7">
-        <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Notifications</h1>
-        <p className="mt-1 text-sm text-muted">{unread.length} unread</p>
+      <div className="mb-7 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Notifications</h1>
+          <p className="mt-1 text-sm text-muted">{unread.length} unread</p>
+        </div>
+        {unread.length > 0 ? (
+          <form action={markAllNotificationsAsRead}>
+            <button
+              type="submit"
+              className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition-colors"
+            >
+              Mark all as read
+            </button>
+          </form>
+        ) : null}
       </div>
 
       <section>

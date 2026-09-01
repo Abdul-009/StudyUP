@@ -15,9 +15,20 @@ type MessageRecord = {
   id: string;
   groupId: string;
   userId: string;
-  content: string;
+  content: string | null;
   createdAt: string;
   editedAt: string | null;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  replyToId: string | null;
+  replyTo?: {
+    id: string;
+    content: string | null;
+    isDeleted: boolean;
+    user?: {
+      name: string;
+    };
+  } | null;
 };
 
 type MemberRecord = {

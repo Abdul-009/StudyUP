@@ -6,9 +6,20 @@ type MessageRecord = {
   id: string;
   groupId: string;
   userId: string;
-  content: string;
+  content: string | null;
   createdAt: string;
   editedAt: string | null;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  replyToId: string | null;
+  replyTo?: {
+    id: string;
+    content: string | null;
+    isDeleted: boolean;
+    user?: {
+      name: string;
+    };
+  } | null;
 };
 
 type MemberRecord = {
@@ -67,8 +78,9 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
 
   const { data: recentMessages } = await supabase
     .from("Message")
-    .select("groupId, content, createdAt")
+    .select("groupId, content, createdAt, isDeleted")
     .in("groupId", sidebarGroupIds.length ? sidebarGroupIds : ["00000000-0000-0000-0000-000000000000"])
+    .eq("isDeleted", false)
     .order("createdAt", { ascending: false });
 
   const lastMessageByGroup: Record<string, { content: string; createdAt: string }> = {};
@@ -87,7 +99,7 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
 
   const { data: messages } = await supabase
     .from("Message")
-    .select("id, groupId, userId, content, createdAt, editedAt")
+    .select("id, groupId, userId, content, createdAt, editedAt, isDeleted, deletedAt, replyToId")
     .eq("groupId", groupId)
     .order("createdAt", { ascending: true });
 
@@ -112,6 +124,43 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
     user: userMap[row.userId] ?? null,
   }));
 
+  // Fetch replyTo messages for messages that have a reply
+  const replyToIds = new Set<string>();
+  
+  if (messages) {
+    for (const msg of messages) {
+      if (msg.replyToId) {
+        replyToIds.add(msg.replyToId);
+      }
+    }
+  }
+
+  const replyToMessages: Record<string, { id: string; content: string | null; isDeleted: boolean; user?: { name: string } }> = {};
+  if (replyToIds.size > 0) {
+    const { data: replyTos } = await supabase
+      .from("Message")
+      .select("id, content, isDeleted, userId")
+      .in("id", Array.from(replyToIds));
+
+    if (replyTos) {
+      for (const msg of replyTos) {
+        const sender = members.find((m) => m.userId === msg.userId);
+        replyToMessages[msg.id] = {
+          id: msg.id,
+          content: msg.content,
+          isDeleted: msg.isDeleted,
+          user: sender?.user ?? undefined,
+        };
+      }
+    }
+  }
+
+  // Augment messages with replyTo data
+  const messagesWithReplies = messages?.map((msg) => ({
+    ...msg,
+    replyTo: msg.replyToId ? replyToMessages[msg.replyToId] : null,
+  })) as MessageRecord[] | null;
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6 md:px-11 md:py-9">
       <div className="mb-4 flex items-end justify-between gap-4 md:mb-7">
@@ -127,7 +176,7 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
         groupName={group.name}
         groupColor={group.accentColor}
         currentUserId={user.id}
-        initialMessages={(messages ?? []) as MessageRecord[]}
+        initialMessages={(messagesWithReplies ?? []) as MessageRecord[]}
         initialMembers={members}
       />
     </main>
