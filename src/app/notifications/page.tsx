@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { BellOff } from "lucide-react";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { markNotificationAsRead, markAllNotificationsAsRead, clearAllNotifications } from "./actions";
 
@@ -7,6 +8,8 @@ const TYPE_LABELS: Record<string, string> = {
   NEW_ASSIGNMENT: "New assignment",
   POLL_UPDATE: "Poll update",
   ANNOUNCEMENT: "Announcement",
+  MENTION: "You were mentioned",
+  ASSIGNMENT_REMINDER: "Assignment due soon",
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -14,6 +17,8 @@ const TYPE_COLORS: Record<string, string> = {
   NEW_ASSIGNMENT: "var(--color-sage)",
   POLL_UPDATE: "var(--color-sunflower)",
   ANNOUNCEMENT: "var(--color-teal)",
+  MENTION: "var(--color-plum)",
+  ASSIGNMENT_REMINDER: "var(--color-coral)",
 };
 
 type NotificationRecord = {
@@ -104,31 +109,43 @@ export default async function NotificationsPage() {
         </div>
       </div>
 
-      <section>
-        <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted">
-          Unread
-        </h2>
-        <div className="space-y-2.5">
-          {unread.length ? (
-            unread.map((notification) => <NotificationRow key={notification.id} notification={notification} />)
-          ) : (
-            <p className="text-sm text-muted">You&apos;re all caught up.</p>
-          )}
+      {list.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-surface px-6 py-12 text-center">
+          <BellOff size={32} className="text-muted opacity-60" />
+          <p className="text-sm font-medium text-foreground">Nothing here yet</p>
+          <p className="text-xs text-muted">
+            You&apos;ll see mentions, new messages, assignments, and other updates here.
+          </p>
         </div>
-      </section>
+      ) : (
+        <>
+          <section>
+            <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted">
+              Unread
+            </h2>
+            <div className="space-y-2.5">
+              {unread.length ? (
+                unread.map((notification) => <NotificationRow key={notification.id} notification={notification} />)
+              ) : (
+                <p className="text-sm text-muted">You&apos;re all caught up.</p>
+              )}
+            </div>
+          </section>
 
-      <section className="mt-7">
-        <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted">
-          Read
-        </h2>
-        <div className="space-y-2.5">
-          {read.length ? (
-            read.map((notification) => <NotificationRow key={notification.id} notification={notification} />)
-          ) : (
-            <p className="text-sm text-muted">No read notifications yet.</p>
-          )}
-        </div>
-      </section>
+          <section className="mt-7">
+            <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted">
+              Read
+            </h2>
+            <div className="space-y-2.5">
+              {read.length ? (
+                read.map((notification) => <NotificationRow key={notification.id} notification={notification} />)
+              ) : (
+                <p className="text-sm text-muted">No read notifications yet.</p>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </main>
   );
 }

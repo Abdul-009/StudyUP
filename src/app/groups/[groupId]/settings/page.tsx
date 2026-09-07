@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import GroupSettingsForm from "./GroupSettingsForm";
+import GroupMembersSection from "./GroupMembersSection";
+import InviteCodeSection from "./InviteCodeSection";
 
 export default async function GroupSettingsPage({
   params,
@@ -33,13 +35,37 @@ export default async function GroupSettingsPage({
 
   const { data: group } = await supabase
     .from("Group")
-    .select("id, name, isPrivate")
+    .select("id, name, description, isPrivate, inviteCode, accentColor")
     .eq("id", groupId)
     .single();
 
   if (!group) {
     redirect("/home");
   }
+
+  const { data: memberRows } = await supabase
+    .from("GroupMember")
+    .select("id, userId, role, joinedAt")
+    .eq("groupId", groupId)
+    .order("role", { ascending: false })
+    .order("joinedAt", { ascending: true });
+
+  const userIds = (memberRows ?? []).map((row) => row.userId);
+  let userMap: Record<string, { name: string; email: string; profilePicUrl: string | null }> = {};
+  if (userIds.length) {
+    const { data: users } = await supabase
+      .from("User")
+      .select("id, name, email, profilePicUrl")
+      .in("id", userIds);
+    userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
+  }
+
+  const members = (memberRows ?? []).map((row) => ({
+    id: row.id,
+    userId: row.userId,
+    role: row.role as "ADMIN" | "MEMBER",
+    user: userMap[row.userId] ?? null,
+  }));
 
   const isAdmin = membership.role === "ADMIN";
 
@@ -60,9 +86,27 @@ export default async function GroupSettingsPage({
         </p>
       </div>
 
+      <section className="mb-6 rounded-xl border border-border bg-surface p-6">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">Group details</h2>
+        <GroupSettingsForm
+          groupId={groupId}
+          initialName={group.name}
+          initialDescription={group.description ?? ""}
+          initialAccentColor={group.accentColor}
+          canEdit={isAdmin}
+        />
+      </section>
+
+      {group.isPrivate ? (
+        <section className="mb-6 rounded-xl border border-border bg-surface p-6">
+          <h2 className="mb-4 text-lg font-semibold text-foreground">Invite code</h2>
+          <InviteCodeSection groupId={groupId} initialInviteCode={group.inviteCode} canEdit={isAdmin} />
+        </section>
+      ) : null}
+
       <section className="rounded-xl border border-border bg-surface p-6">
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Name</h2>
-        <GroupSettingsForm groupId={groupId} initialName={group.name} canEdit={isAdmin} />
+        <h2 className="mb-4 text-lg font-semibold text-foreground">Members</h2>
+        <GroupMembersSection groupId={groupId} currentUserId={user.id} isAdmin={isAdmin} initialMembers={members} />
       </section>
     </main>
   );

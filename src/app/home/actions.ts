@@ -4,11 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { leastUsedColor } from "@/lib/groupColors";
-
-function randomCode(length = 6) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-}
+import { generateInviteCode } from "@/lib/invite-code";
+import {
+  assertMaxLength,
+  GROUP_DESCRIPTION_MAX_LENGTH,
+  GROUP_NAME_MAX_LENGTH,
+  sanitizeText,
+} from "@/lib/sanitize-content";
 
 export async function createGroup(formData: FormData) {
   const supabase = await createClient();
@@ -18,13 +20,17 @@ export async function createGroup(formData: FormData) {
     throw new Error("You must be signed in to create a group.");
   }
 
-  const name = String(formData.get("name") || "").trim();
-  const description = String(formData.get("description") || "").trim();
+  const name = sanitizeText(String(formData.get("name") || ""));
+  const description = sanitizeText(String(formData.get("description") || ""));
   const isPrivate = formData.get("isPrivate") === "on";
-  const inviteCode = isPrivate ? randomCode() : null;
+  const inviteCode = isPrivate ? generateInviteCode() : null;
 
   if (!name) {
     throw new Error("Group name is required.");
+  }
+  assertMaxLength(name, GROUP_NAME_MAX_LENGTH, "Group name");
+  if (description) {
+    assertMaxLength(description, GROUP_DESCRIPTION_MAX_LENGTH, "Group description");
   }
 
   const { data: myGroups } = await supabase.from("Group").select("accentColor").eq("createdBy", user.id);

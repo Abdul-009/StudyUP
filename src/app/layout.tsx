@@ -4,6 +4,8 @@ import "./globals.css";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
 import UserMenu from "@/components/UserMenu";
+import PresenceProvider from "@/components/PresenceProvider";
+import RealtimeChannelLogger from "@/components/RealtimeChannelLogger";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -75,29 +77,34 @@ export default async function RootLayout({
     >
       <body className="flex h-dvh flex-col overflow-hidden md:flex-row">
         {user ? (
-          <Sidebar
-            userId={user.id}
-            userName={profile?.name || "Your account"}
-            userCourse={profile?.course ?? null}
-            userYearOfStudy={profile?.yearOfStudy ?? null}
-            userProfilePicUrl={profile?.profilePicUrl ?? null}
-            unreadCount={unreadCount}
-            fallbackGroupId={fallbackGroupId}
-          />
-        ) : null}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {user ? (
-            <div className="hidden shrink-0 items-center justify-end border-b border-border bg-surface px-6 py-2.5 md:flex">
-              <UserMenu
-                userName={profile?.name || "Your account"}
-                userCourse={profile?.course ?? null}
-                userYearOfStudy={profile?.yearOfStudy ?? null}
-                userProfilePicUrl={profile?.profilePicUrl ?? null}
-              />
+          <PresenceProvider userId={user.id}>
+            <RealtimeChannelLogger />
+            <Sidebar
+              userId={user.id}
+              userName={profile?.name || "Your account"}
+              userCourse={profile?.course ?? null}
+              userYearOfStudy={profile?.yearOfStudy ?? null}
+              userProfilePicUrl={profile?.profilePicUrl ?? null}
+              unreadCount={unreadCount}
+              fallbackGroupId={fallbackGroupId}
+            />
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <div className="hidden shrink-0 items-center justify-end border-b border-border bg-surface px-6 py-2.5 md:flex">
+                <UserMenu
+                  userName={profile?.name || "Your account"}
+                  userCourse={profile?.course ?? null}
+                  userYearOfStudy={profile?.yearOfStudy ?? null}
+                  userProfilePicUrl={profile?.profilePicUrl ?? null}
+                />
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto pb-16 md:pb-0">{children}</div>
             </div>
-          ) : null}
-          <div className={`min-h-0 flex-1 overflow-y-auto ${user ? "pb-16 md:pb-0" : ""}`}>{children}</div>
-        </div>
+          </PresenceProvider>
+        ) : (
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          </div>
+        )}
       </body>
     </html>
   );

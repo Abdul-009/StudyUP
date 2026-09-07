@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
+import { MESSAGE_PAGE_SIZE, encodeMessageCursor } from "@/lib/messages-pagination";
 import DMThread from "./DMThread";
 
 type DirectMessageRow = {
@@ -11,6 +12,8 @@ type DirectMessageRow = {
   isDeleted: boolean;
   deletedAt: string | null;
   createdAt: string;
+  isEdited: boolean;
+  editedAt: string | null;
   attachmentUrl: string | null;
   attachmentType: string | null;
   attachmentName: string | null;
@@ -22,6 +25,7 @@ type UserRow = {
   name: string;
   email: string;
   profilePicUrl: string | null;
+  lastSeenAt: string | null;
 };
 
 export default async function DMThreadPage({
@@ -58,20 +62,32 @@ export default async function DMThreadPage({
   // so fetch both participants' names here for the reply-quote sender labels.
   const { data: participantRows } = await supabase
     .from("User")
-    .select("id, name, email, profilePicUrl")
+    .select("id, name, email, profilePicUrl, lastSeenAt")
     .in("id", [user.id, otherId]);
 
   const otherUser = participantRows?.find((u) => u.id === otherId) ?? null;
   const currentUserName = participantRows?.find((u) => u.id === user.id)?.name ?? "You";
 
-  // Fetch messages
-  const { data: messages } = await supabase
+  // Only the most recent page loads up front; older history is paged in on
+  // scroll via the `fetchDirectMessages` action. One extra row tells us
+  // whether a page before this one exists.
+  const { data: pageRows } = await supabase
     .from("DirectMessage")
     .select(
-      "id, conversationId, senderId, content, replyToId, isDeleted, deletedAt, createdAt, attachmentUrl, attachmentType, attachmentName, attachmentSize",
+      "id, conversationId, senderId, content, replyToId, isDeleted, deletedAt, createdAt, isEdited, editedAt, attachmentUrl, attachmentType, attachmentName, attachmentSize",
     )
     .eq("conversationId", conversationId)
-    .order("createdAt", { ascending: true });
+    .order("createdAt", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(MESSAGE_PAGE_SIZE + 1);
+
+  const initialHasMore = (pageRows ?? []).length > MESSAGE_PAGE_SIZE;
+  // Thread renders oldest-first; the query came back newest-first.
+  const messages = (pageRows ?? []).slice(0, MESSAGE_PAGE_SIZE).reverse();
+  const initialCursor =
+    initialHasMore && messages.length
+      ? encodeMessageCursor({ createdAt: messages[0].createdAt, id: messages[0].id })
+      : null;
 
   // Fetch replyTo messages
   const replyToIds = new Set<string>();
@@ -138,6 +154,8 @@ export default async function DMThreadPage({
         otherUser={otherUser}
         initialMessages={messagesWithReplies}
         initialReads={readRows ?? []}
+        initialHasMore={initialHasMore}
+        initialCursor={initialCursor}
       />
     </main>
   );

@@ -3,6 +3,12 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  assertMaxLength,
+  ASSIGNMENT_DESCRIPTION_MAX_LENGTH,
+  ASSIGNMENT_TITLE_MAX_LENGTH,
+  sanitizeText,
+} from "@/lib/sanitize-content";
 
 export async function createAssignment(formData: FormData) {
   const supabase = await createClient();
@@ -28,10 +34,11 @@ export async function createAssignment(formData: FormData) {
     throw new Error("You must be a member of this group to create assignments.");
   }
 
-  const title = String(formData.get("title") || "").trim();
+  const title = sanitizeText(String(formData.get("title") || ""));
   if (!title) {
     throw new Error("Assignment title is required.");
   }
+  assertMaxLength(title, ASSIGNMENT_TITLE_MAX_LENGTH, "Assignment title");
 
   const dueDateRaw = String(formData.get("dueDate") || "");
   const dueDateValue = new Date(dueDateRaw);
@@ -39,7 +46,10 @@ export async function createAssignment(formData: FormData) {
     throw new Error("A valid due date is required.");
   }
 
-  const description = String(formData.get("description") || "").trim();
+  const description = sanitizeText(String(formData.get("description") || ""));
+  if (description) {
+    assertMaxLength(description, ASSIGNMENT_DESCRIPTION_MAX_LENGTH, "Assignment description");
+  }
 
   const { data: assignment, error: assignmentError } = await supabase
     .from("Assignment")
@@ -98,19 +108,29 @@ export async function toggleAssignmentCompletion(groupId: string, assignmentId: 
     throw new Error("You must be a member of this group to update assignment completion.");
   }
 
-  const { error: completionError } = await supabase
-    .from("AssignmentCompletion")
-    .upsert(
-      {
-        assignmentId,
-        userId: user.id,
-        completedAt: completed ? new Date().toISOString() : null,
-      },
-      { onConflict: "assignmentId,userId" },
-    );
+  if (completed) {
+    const { error: completionError } = await supabase
+      .from("AssignmentCompletion")
+      .upsert(
+        { assignmentId, userId: user.id, groupId },
+        { onConflict: "assignmentId,userId" },
+      );
 
-  if (completionError) {
-    throw new Error(completionError.message);
+    if (completionError) {
+      throw new Error(completionError.message);
+    }
+  } else {
+    // completedAt is NOT NULL now — "incomplete" means the row doesn't exist,
+    // not a null timestamp.
+    const { error: completionError } = await supabase
+      .from("AssignmentCompletion")
+      .delete()
+      .eq("assignmentId", assignmentId)
+      .eq("userId", user.id);
+
+    if (completionError) {
+      throw new Error(completionError.message);
+    }
   }
 
   // No redirect here - this is called directly from a client component so the

@@ -8,7 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "db:apply-pending": "node scripts/apply-pending-migrations.mjs",
-    "test:messaging": "node tests/messaging.test.mjs"
+    "test:messaging": "node tests/messaging.test.mjs",
+    "test:sanitize": "node --experimental-strip-types tests/sanitize-content.test.mjs",
+    "test:rate-limit": "node --experimental-strip-types tests/rate-limit.test.mjs",
+    "test:group-management": "node tests/group-management.test.mjs",
+    "test:assignment-tracking": "node tests/assignment-tracking.test.mjs",
+    "test:profile-password": "node tests/profile-and-password.test.mjs",
+    "test:search": "node tests/search.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

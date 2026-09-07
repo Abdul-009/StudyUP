@@ -41,12 +41,12 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
     .order("dueDate", { ascending: true });
 
   const assignmentIds = (assignments ?? []).map((assignment) => assignment.id);
-  let completions: { assignmentId: string; userId: string; completedAt: string | null }[] = [];
+  let completions: { assignmentId: string; userId: string }[] = [];
 
   if (assignmentIds.length) {
     const { data } = await supabase
       .from("AssignmentCompletion")
-      .select("assignmentId, userId, completedAt")
+      .select("assignmentId, userId")
       .in("assignmentId", assignmentIds);
     completions = data ?? [];
   }
@@ -55,7 +55,6 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
   const completedByCurrentUser: Record<string, boolean> = {};
 
   for (const completion of completions) {
-    if (!completion.completedAt) continue;
     completedCounts[completion.assignmentId] = (completedCounts[completion.assignmentId] ?? 0) + 1;
     if (completion.userId === user.id) {
       completedByCurrentUser[completion.assignmentId] = true;
@@ -84,6 +83,7 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
         groupId={groupId}
         groupName={group.name}
         groupColor={group.accentColor}
+        currentUserId={user.id}
         totalMembers={totalMembers ?? 0}
         initialAssignments={assignmentList}
       />

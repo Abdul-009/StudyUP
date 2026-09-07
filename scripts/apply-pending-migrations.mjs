@@ -32,6 +32,28 @@ const PENDING = [
   "add_read_receipts_rls",
   "add_read_receipts_realtime",
   "add_message_attachments",
+  // Sets REPLICA IDENTITY FULL on "Message" so Realtime reliably delivers
+  // UPDATE events (e.g. soft-delete) to clients filtering by groupId — without
+  // it, group-chat delete-state updates can silently fail to propagate live.
+  "add_message_notification_replica_identity",
+  // isEdited/editedAt columns for the message-editing feature.
+  "add_message_editing",
+  // MENTION NotifType value + Message.mentionedUserIds for @mentions.
+  "add_message_mentions",
+  // User.lastSeenAt for online/last-seen status.
+  "add_user_last_seen",
+  // Composite (groupId/conversationId, createdAt) indexes backing cursor-based
+  // message pagination. Idempotent (CREATE INDEX IF NOT EXISTS).
+  "add_message_pagination_indexes",
+  // "Group" in the realtime publication, so name/description/color edits
+  // propagate live to anyone with that group's chat open.
+  "add_group_realtime",
+  // ASSIGNMENT_REMINDER NotifType value — must run before the next migration,
+  // which references it in a partial index (same-transaction restriction).
+  "add_assignment_reminder_notif_type",
+  // AssignmentCompletion: completedAt NOT NULL, denormalized groupId +
+  // realtime, and the reminder-notification dedup index.
+  "add_assignment_completion_tracking",
 ];
 
 for (const name of PENDING) {

@@ -3,6 +3,12 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  assertMaxLength,
+  POLL_OPTION_MAX_LENGTH,
+  POLL_QUESTION_MAX_LENGTH,
+  sanitizeText,
+} from "@/lib/sanitize-content";
 
 const POLL_TYPES = ["MEETING_TIME", "STUDY_TOPIC", "CUSTOM"] as const;
 const MAX_OPTIONS = 6;
@@ -31,10 +37,11 @@ export async function createPoll(formData: FormData) {
     throw new Error("You must be a member of this group to create a poll.");
   }
 
-  const question = String(formData.get("question") || "").trim();
+  const question = sanitizeText(String(formData.get("question") || ""));
   if (!question) {
     throw new Error("Poll question is required.");
   }
+  assertMaxLength(question, POLL_QUESTION_MAX_LENGTH, "Poll question");
 
   const type = String(formData.get("type") || "");
   if (!(POLL_TYPES as readonly string[]).includes(type)) {
@@ -54,11 +61,14 @@ export async function createPoll(formData: FormData) {
   }
 
   const optionLabels = Array.from({ length: MAX_OPTIONS }, (_, index) =>
-    String(formData.get(`option-${index}`) || "").trim(),
+    sanitizeText(String(formData.get(`option-${index}`) || "")),
   ).filter(Boolean);
 
   if (optionLabels.length < 2) {
     throw new Error("At least 2 options are required.");
+  }
+  for (const label of optionLabels) {
+    assertMaxLength(label, POLL_OPTION_MAX_LENGTH, "Poll option");
   }
 
   const { data: poll, error: pollError } = await supabase

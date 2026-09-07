@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function ChangePasswordForm() {
+export default function ChangePasswordForm({ redirectTo }: { redirectTo?: string }) {
+  const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -43,7 +45,20 @@ export default function ChangePasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="mt-4 space-y-3">
       {error ? <p className="rounded-md bg-coral-tint p-3 text-sm text-coral">{error}</p> : null}
-      {success ? <p className="rounded-md bg-sage-tint p-3 text-sm text-sage">Password updated.</p> : null}
+      {success ? (
+        <div className="rounded-md bg-sage-tint p-3 text-sm text-sage">
+          <p>Password updated.</p>
+          {redirectTo ? (
+            <button
+              type="button"
+              onClick={() => router.push(redirectTo)}
+              className="mt-1.5 font-semibold underline"
+            >
+              Continue
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <label className="block text-sm text-muted">
         New password
         <input

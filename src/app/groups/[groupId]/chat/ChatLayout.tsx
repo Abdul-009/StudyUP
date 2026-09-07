@@ -17,10 +17,12 @@ type MessageRecord = {
   userId: string;
   content: string | null;
   createdAt: string;
+  isEdited: boolean;
   editedAt: string | null;
   isDeleted: boolean;
   deletedAt: string | null;
   replyToId: string | null;
+  mentionedUserIds: string[];
   attachmentUrl: string | null;
   attachmentType: string | null;
   attachmentName: string | null;
@@ -44,6 +46,7 @@ type MemberRecord = {
     name: string;
     email: string;
     profilePicUrl: string | null;
+    lastSeenAt: string | null;
   } | null;
 };
 
@@ -59,6 +62,8 @@ type ChatLayoutProps = {
   initialMessages: MessageRecord[];
   initialMembers: MemberRecord[];
   initialReads: ReadRecord[];
+  initialHasMore: boolean;
+  initialCursor: string | null;
 };
 
 export default function ChatLayout({
@@ -71,6 +76,8 @@ export default function ChatLayout({
   initialMessages,
   initialMembers,
   initialReads,
+  initialHasMore,
+  initialCursor,
 }: ChatLayoutProps) {
   // On mobile, only one panel is shown at a time; arriving at a group's chat
   // page shows the chat first, and the back button returns to the list.
@@ -90,6 +97,8 @@ export default function ChatLayout({
           initialMessages={initialMessages}
           initialMembers={initialMembers}
           initialReads={initialReads}
+          initialHasMore={initialHasMore}
+          initialCursor={initialCursor}
           onBack={() => setShowList(true)}
         />
       </div>

@@ -210,8 +210,28 @@ export default async function HomePage({
         </button>
       </form>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {groupCards.map((group) => (
+      {groupCards.length === 0 ? (
+        <div className="mt-6 flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-border bg-surface px-6 py-12 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-recessed text-2xl">
+            👋
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">You&apos;re not in any groups yet</h2>
+            <p className="mt-1 text-sm text-muted">
+              Create one or{" "}
+              <a href="#discover-groups" className="font-medium text-brand hover:underline">
+                join with an invite code
+              </a>
+              .
+            </p>
+          </div>
+          <CreateGroupModal variant="button" />
+        </div>
+      ) : null}
+
+      {groupCards.length > 0 ? (
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {groupCards.map((group) => (
           <Link
             key={group.id}
             href={`/groups/${group.id}/chat`}
@@ -253,9 +273,10 @@ export default async function HomePage({
         ))}
 
         <CreateGroupModal variant="card" />
-      </div>
+        </div>
+      ) : null}
 
-      <section className="mt-8 rounded-xl border border-border bg-surface p-6">
+      <section id="discover-groups" className="mt-8 scroll-mt-6 rounded-xl border border-border bg-surface p-6">
         <h2 className="text-xl font-semibold text-foreground">Discover groups</h2>
         <div className="mt-4 space-y-4">
           <div>

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertMaxLength, ANNOUNCEMENT_MAX_LENGTH, sanitizeText } from "@/lib/sanitize-content";
 
 export async function createAnnouncement(groupId: string, content: string) {
   const supabase = await createClient();
@@ -27,10 +28,11 @@ export async function createAnnouncement(groupId: string, content: string) {
     throw new Error("Only admins can post announcements.");
   }
 
-  const trimmedContent = content.trim();
+  const trimmedContent = sanitizeText(content);
   if (!trimmedContent) {
     throw new Error("Announcement content is required.");
   }
+  assertMaxLength(trimmedContent, ANNOUNCEMENT_MAX_LENGTH, "Announcement");
 
   const { data: announcement, error: announcementError } = await supabase
     .from("Announcement")

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Check } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, ClipboardList } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { toggleAssignmentCompletion } from "./actions";
 
 type AssignmentStatus = "upcoming" | "overdue" | "completed";
@@ -18,6 +19,7 @@ type AssignmentsListClientProps = {
   groupId: string;
   groupName: string;
   groupColor: string;
+  currentUserId: string;
   totalMembers: number;
   initialAssignments: AssignmentRecord[];
 };
@@ -34,6 +36,7 @@ export default function AssignmentsListClient({
   groupId,
   groupName,
   groupColor,
+  currentUserId,
   totalMembers,
   initialAssignments,
 }: AssignmentsListClientProps) {
@@ -41,6 +44,52 @@ export default function AssignmentsListClient({
   const [activeTab, setActiveTab] = useState<AssignmentStatus>("upcoming");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [supabase] = useState(() => createClient());
+
+  const assignmentIds = useMemo(() => initialAssignments.map((a) => a.id), [initialAssignments]);
+
+  // Live completion counts: any member toggling their own completion shows up
+  // for everyone else viewing this list, without a manual refresh.
+  useEffect(() => {
+    if (!assignmentIds.length) return;
+
+    async function refreshCompletions() {
+      const { data: rows } = await supabase
+        .from("AssignmentCompletion")
+        .select("assignmentId, userId")
+        .in("assignmentId", assignmentIds);
+
+      setAssignments((prev) =>
+        prev.map((assignment) => {
+          const forThis = (rows ?? []).filter((row) => row.assignmentId === assignment.id);
+          return {
+            ...assignment,
+            completedCount: forThis.length,
+            isCompletedByCurrentUser: forThis.some((row) => row.userId === currentUserId),
+          };
+        }),
+      );
+    }
+
+    const channel = supabase.channel(`group-assignment-completions-${groupId}`);
+
+    channel.on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "AssignmentCompletion", filter: `groupId=eq.${groupId}` },
+      () => refreshCompletions(),
+    );
+    channel.on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "AssignmentCompletion", filter: `groupId=eq.${groupId}` },
+      () => refreshCompletions(),
+    );
+
+    channel.subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [groupId, supabase, assignmentIds, currentUserId]);
 
   async function handleToggle(assignment: AssignmentRecord) {
     const nextCompleted = !assignment.isCompletedByCurrentUser;
@@ -144,8 +193,14 @@ export default function AssignmentsListClient({
               </div>
             );
           })
+        ) : assignments.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-surface px-6 py-10 text-center">
+            <ClipboardList size={32} className="text-muted opacity-60" />
+            <p className="text-sm font-medium text-foreground">No assignments yet</p>
+            <p className="text-xs text-muted">Create one so the group can track who&apos;s done what.</p>
+          </div>
         ) : (
-          <p className="text-sm text-muted">No assignments in this view.</p>
+          <p className="text-sm text-muted">No {activeTab} assignments right now.</p>
         )}
       </div>
     </div>
