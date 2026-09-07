@@ -7,6 +7,12 @@ export const dynamic = "force-dynamic";
 // How far ahead of the due date a reminder should fire. Configurable per the
 // task's ask — kept as a single constant rather than plumbed through env so
 // there's one obvious place to change it.
+//
+// vercel.json runs this once daily (09:00 UTC), not hourly — Vercel's Hobby
+// plan only permits cron schedules with a period of one day or more; an
+// hourly schedule is silently rejected at deploy time (the build fails with
+// no clearer signal than a link to Vercel's cron pricing docs). Upgrading to
+// a Pro plan lifts that limit if finer-grained reminders are wanted later.
 const REMINDER_WINDOW_HOURS = 24;
 
 // Service-role client: this job has no user session (it's invoked by Vercel
