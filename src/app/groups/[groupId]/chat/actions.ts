@@ -285,6 +285,8 @@ export async function createGroupMessage(
   const attachmentLabel = attachment
     ? attachment.type.startsWith("image/")
       ? "📷 Photo"
+      : attachment.type.startsWith("video/")
+      ? "🎥 Video"
       : `📎 ${attachment.name}`
     : "";
   const base = trimmedContent || attachmentLabel;

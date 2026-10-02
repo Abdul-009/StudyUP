@@ -285,6 +285,8 @@ export async function sendDirectMessage(
     (attachment
       ? attachment.type.startsWith("image/")
         ? "📷 Photo"
+        : attachment.type.startsWith("video/")
+        ? "🎥 Video"
         : `📎 ${attachment.name}`
       : "");
   const preview = previewBase.replace(/\s+/g, " ").slice(0, 80);

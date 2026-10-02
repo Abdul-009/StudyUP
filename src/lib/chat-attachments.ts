@@ -4,12 +4,23 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 const STORAGE_BUCKET = "chat-attachments";
-const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB (serverActions bodySizeLimit is 12mb)
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // images, documents, archives
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // Supabase's default per-file ceiling
 
-// Permissive allow-list — images and common document/archive types, matching the
-// kinds of things you'd share in WhatsApp. Executables and scripts are excluded.
+const VIDEO_TYPES: Record<string, string> = {
+  mp4: "video/mp4",
+  m4v: "video/x-m4v",
+  mov: "video/quicktime",
+  webm: "video/webm",
+  "3gp": "video/3gpp",
+};
+
+// Permissive allow-list: images, video and common document/archive types,
+// matching the kinds of things you'd share in WhatsApp. Executables and
+// scripts are excluded.
 const ALLOWED_EXTENSIONS = new Set([
   "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "svg",
+  ...Object.keys(VIDEO_TYPES),
   "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx",
   "txt", "csv", "md", "rtf",
   "zip", "json",
@@ -20,6 +31,14 @@ export type ChatAttachment = {
   type: string;
   name: string;
   size: number;
+};
+
+export type PreparedChatUpload = {
+  bucket: string;
+  path: string;
+  token: string;
+  publicUrl: string;
+  contentType: string;
 };
 
 function sanitizeFileName(name: string) {
@@ -34,14 +53,19 @@ function sanitizeFileName(name: string) {
 }
 
 /**
- * Upload one chat attachment and return its public URL + metadata. The caller
- * then passes that metadata to createGroupMessage / sendDirectMessage.
+ * Validate an upload and hand back a signed upload token. The browser then
+ * sends the file straight to Storage, so it never passes through a server
+ * action (Vercel rejects request bodies over ~4.5MB, which broke any larger
+ * image or PDF and made video impossible).
  *
- * FormData fields:
- *   file  - the File
- *   scope - "group:<groupId>" | "dm:<conversationId>"
+ * scope: "group:<groupId>" | "dm:<conversationId>"
  */
-export async function uploadChatAttachment(formData: FormData): Promise<ChatAttachment> {
+export async function prepareChatUpload(input: {
+  name: string;
+  size: number;
+  type: string;
+  scope: string;
+}): Promise<PreparedChatUpload> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -52,21 +76,21 @@ export async function uploadChatAttachment(formData: FormData): Promise<ChatAtta
     throw new Error("You must be signed in to upload.");
   }
 
-  const file = formData.get("file");
-  const scope = String(formData.get("scope") || "").trim();
-
-  if (!(file instanceof File)) {
-    throw new Error("Please choose a file.");
-  }
-  if (file.size > MAX_ATTACHMENT_SIZE) {
-    throw new Error("Attachments must be 10MB or less.");
-  }
-
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const extension = input.name.split(".").pop()?.toLowerCase() ?? "";
   if (!ALLOWED_EXTENSIONS.has(extension)) {
-    throw new Error("That file type isn't supported.");
+    throw new Error("That file type is not supported.");
   }
 
+  const isVideo = extension in VIDEO_TYPES;
+  const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_ATTACHMENT_SIZE;
+  if (!Number.isFinite(input.size) || input.size <= 0) {
+    throw new Error("That file is empty.");
+  }
+  if (input.size > maxSize) {
+    throw new Error(`${isVideo ? "Videos" : "Attachments"} must be ${maxSize / (1024 * 1024)}MB or less.`);
+  }
+
+  const scope = input.scope.trim();
   let storageFolder: string;
 
   if (scope.startsWith("group:")) {
@@ -105,29 +129,30 @@ export async function uploadChatAttachment(formData: FormData): Promise<ChatAtta
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
-  try {
-    await storageClient.storage.createBucket(STORAGE_BUCKET, { public: true });
-  } catch {
-    // Bucket already exists — fine.
+  // Create the bucket on first use; if it already exists, make sure it allows
+  // video-sized files.
+  const bucketOptions = { public: true, fileSizeLimit: MAX_VIDEO_SIZE };
+  const { error: createBucketError } = await storageClient.storage.createBucket(STORAGE_BUCKET, bucketOptions);
+  if (createBucketError) {
+    await storageClient.storage.updateBucket(STORAGE_BUCKET, bucketOptions);
   }
 
-  const storagePath = `${storageFolder}/${sanitizeFileName(file.name)}`;
-  const { error: uploadError } = await storageClient.storage
+  const path = `${storageFolder}/${sanitizeFileName(input.name)}`;
+  const { data: signed, error: signedError } = await storageClient.storage
     .from(STORAGE_BUCKET)
-    .upload(storagePath, file, { cacheControl: "3600", upsert: false });
+    .createSignedUploadUrl(path);
 
-  if (uploadError) {
-    throw new Error(uploadError.message);
+  if (signedError || !signed) {
+    throw new Error(signedError?.message || "Couldn't start the upload.");
   }
 
-  const { data: publicUrlData } = storageClient.storage
-    .from(STORAGE_BUCKET)
-    .getPublicUrl(storagePath);
+  const { data: publicUrlData } = storageClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
 
   return {
-    url: publicUrlData.publicUrl,
-    type: file.type || `application/${extension}`,
-    name: file.name,
-    size: file.size,
+    bucket: STORAGE_BUCKET,
+    path,
+    token: signed.token,
+    publicUrl: publicUrlData.publicUrl,
+    contentType: VIDEO_TYPES[extension] ?? (input.type || `application/${extension}`),
   };
 }

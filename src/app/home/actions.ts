@@ -66,7 +66,10 @@ export async function createGroup(formData: FormData) {
   redirect(`/groups/${group.id}/chat`);
 }
 
-export async function joinGroup(groupId: string, inviteCode?: string | null) {
+// Public groups only: anyone can join. Private groups are invisible to
+// non-members (row-level security), so they are joined by invite code through
+// the join_group_with_code database function instead.
+export async function joinGroup(groupId: string) {
   const supabase = await createClient();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -74,18 +77,17 @@ export async function joinGroup(groupId: string, inviteCode?: string | null) {
     throw new Error("You must be signed in to join a group.");
   }
 
-  const { data: group, error: groupError } = await supabase
+  const { data: group } = await supabase
     .from("Group")
-    .select("id, isPrivate, inviteCode")
+    .select("id, isPrivate")
     .eq("id", groupId)
-    .single();
+    .maybeSingle();
 
-  if (groupError || !group) {
+  if (!group) {
     throw new Error("Group not found.");
   }
-
-  if (group.isPrivate && inviteCode !== group.inviteCode) {
-    throw new Error("Incorrect invite code.");
+  if (group.isPrivate) {
+    throw new Error("This group is private. Join it with an invite code.");
   }
 
   const { error } = await supabase.from("GroupMember").insert({
@@ -113,34 +115,29 @@ export async function joinGroupByCode(_prev: JoinByCodeState, formData: FormData
     return { error: "You must be signed in to join a group." };
   }
 
-  const code = String(formData.get("inviteCode") || "").trim().toUpperCase();
+  const code = String(formData.get("inviteCode") || "").trim();
   if (!code) {
     return { error: "Enter an invite code." };
   }
 
-  const { data: group } = await supabase
-    .from("Group")
-    .select("id")
-    .eq("inviteCode", code)
-    .maybeSingle();
+  const { data: groupId, error } = await supabase.rpc("join_group_with_code", { code });
 
-  if (!group) {
+  if (error || !groupId) {
     return { error: "No group matches that invite code. Check it and try again." };
   }
 
-  await joinGroup(group.id, code);
-  return { error: null };
+  revalidatePath("/home");
+  redirect(`/groups/${groupId}/chat`);
 }
 
 export async function joinGroupFromForm(formData: FormData) {
   const groupId = String(formData.get("groupId") || "").trim();
-  const inviteCode = String(formData.get("inviteCode") || "").trim();
 
   if (!groupId) {
     throw new Error("A group is required.");
   }
 
-  await joinGroup(groupId, inviteCode || null);
+  await joinGroup(groupId);
 }
 
 const PUBLIC_GROUPS_PAGE_SIZE = 5;

@@ -13,6 +13,7 @@ type PreviewSource = {
 function previewOf(row: PreviewSource): string {
   if (row.content) return row.content;
   if (row.attachmentType?.startsWith("image/")) return "📷 Photo";
+  if (row.attachmentType?.startsWith("video/")) return "🎥 Video";
   if (row.attachmentName) return `📎 ${row.attachmentName}`;
   return "Message";
 }

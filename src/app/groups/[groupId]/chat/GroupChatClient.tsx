@@ -18,7 +18,8 @@ import {
   type MessageSearchResult,
 } from "./actions";
 import { MESSAGE_PAGE_SIZE } from "@/lib/messages-pagination";
-import { uploadChatAttachment, type ChatAttachment } from "@/lib/chat-attachments";
+import type { ChatAttachment } from "@/lib/chat-attachments";
+import { uploadChatAttachment } from "@/lib/chat-upload";
 import EmojiPicker from "@/components/EmojiPicker";
 import MessageAttachment from "@/components/MessageAttachment";
 import PresenceStatus, { OnlineDot } from "@/components/PresenceStatus";
@@ -735,10 +736,7 @@ export default function GroupChatClient({
     setError(null);
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.set("file", file);
-      formData.set("scope", `group:${groupId}`);
-      const uploaded = await uploadChatAttachment(formData);
+      const uploaded = await uploadChatAttachment(file, `group:${groupId}`);
       setPendingAttachment(uploaded);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't upload that file.");
@@ -1456,7 +1454,7 @@ export default function GroupChatClient({
             type="file"
             onChange={handleFilePicked}
             className="hidden"
-            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.md,.rtf,.zip,.json"
+            accept="image/*,video/*,.mp4,.mov,.m4v,.webm,.3gp,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.md,.rtf,.zip,.json"
           />
           <button
             type="button"

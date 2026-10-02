@@ -20,6 +20,32 @@ function formatSize(bytes: number | null) {
 
 export default function MessageAttachment({ url, type, name, size, onDark }: MessageAttachmentProps) {
   const isImage = (type ?? "").startsWith("image/");
+  const isVideo = (type ?? "").startsWith("video/");
+
+  if (isVideo) {
+    return (
+      <div className="mt-1">
+        <video
+          src={url}
+          controls
+          playsInline
+          preload="metadata"
+          className="max-h-72 w-full max-w-full rounded-lg bg-black"
+        />
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          download={name ?? undefined}
+          className={`mt-1 inline-flex items-center gap-1 text-[11px] underline ${onDark ? "text-white/80" : "text-muted"}`}
+        >
+          <Download size={12} />
+          {name ?? "Download video"}
+          {formatSize(size) ? ` · ${formatSize(size)}` : ""}
+        </a>
+      </div>
+    );
+  }
 
   if (isImage) {
     return (
