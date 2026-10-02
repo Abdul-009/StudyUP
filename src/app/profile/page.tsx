@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import ProfileForm from "./ProfileForm";
 
+export const metadata = { title: "Profile" };
+
 export default async function ProfilePage() {
   const supabase = await createClient();
   const { data: { user }, error } = await getAuthUser();

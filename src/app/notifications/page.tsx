@@ -3,6 +3,7 @@ import { BellOff } from "lucide-react";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { markNotificationAsRead, markAllNotificationsAsRead, clearAllNotifications } from "./actions";
 import LocalTime from "@/components/LocalTime";
+import SubmitButton from "@/components/SubmitButton";
 
 const TYPE_LABELS: Record<string, string> = {
   NEW_MESSAGE: "New message",
@@ -49,7 +50,9 @@ function NotificationRow({ notification }: { notification: NotificationRecord })
       >
         <div className="min-w-0 flex-1">
           <h3 className={`truncate text-[15px] font-semibold ${notification.isRead ? "text-muted" : "text-foreground"}`}>
-            {TYPE_LABELS[notification.type] || notification.type}
+            {notification.type === "NEW_MESSAGE" && !notification.groupId
+              ? "Direct message"
+              : TYPE_LABELS[notification.type] || notification.type}
           </h3>
           <p className="truncate text-xs text-muted">{notification.content}</p>
         </div>
@@ -60,6 +63,8 @@ function NotificationRow({ notification }: { notification: NotificationRecord })
     </form>
   );
 }
+
+export const metadata = { title: "Notifications" };
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
@@ -89,22 +94,23 @@ export default async function NotificationsPage() {
         <div className="flex shrink-0 items-center gap-2">
           {unread.length > 0 ? (
             <form action={markAllNotificationsAsRead}>
-              <button
-                type="submit"
+              <SubmitButton
+                pendingLabel="Marking…"
                 className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition-colors"
               >
                 Mark all as read
-              </button>
+              </SubmitButton>
             </form>
           ) : null}
           {list.length > 0 ? (
             <form action={clearAllNotifications}>
-              <button
-                type="submit"
+              <SubmitButton
+                pendingLabel="Clearing…"
+                confirmMessage="Delete all notifications? This can't be undone."
                 className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-muted hover:bg-border hover:text-foreground transition-colors"
               >
                 Clear all
-              </button>
+              </SubmitButton>
             </form>
           ) : null}
         </div>

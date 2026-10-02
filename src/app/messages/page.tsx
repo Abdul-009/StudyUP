@@ -4,13 +4,52 @@ import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { getOrCreateDirectConversation } from "@/lib/dm-actions";
 import { fetchLastDirectMessages } from "@/lib/last-messages";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import LocalTime from "@/components/LocalTime";
+import NewMessagePicker, { type Person } from "./NewMessagePicker";
 
 type UserRow = {
   id: string;
   name: string;
   profilePicUrl: string | null;
 };
+
+export const metadata = { title: "Messages" };
+
+// Everyone the user shares a group with (the only people they may message).
+async function loadPeople(supabase: SupabaseClient, userId: string): Promise<Person[]> {
+  const { data: mine } = await supabase.from("GroupMember").select("groupId").eq("userId", userId);
+  const groupIds = (mine ?? []).map((row) => row.groupId as string);
+  if (!groupIds.length) return [];
+
+  const [{ data: members }, { data: groups }] = await Promise.all([
+    supabase.from("GroupMember").select("groupId, userId").in("groupId", groupIds),
+    supabase.from("Group").select("id, name").in("id", groupIds),
+  ]);
+
+  const groupName = new Map((groups ?? []).map((g) => [g.id as string, g.name as string]));
+  const groupsByUser = new Map<string, string[]>();
+  for (const m of members ?? []) {
+    if (m.userId === userId) continue;
+    const list = groupsByUser.get(m.userId as string) ?? [];
+    const name = groupName.get(m.groupId as string);
+    if (name && !list.includes(name)) list.push(name);
+    groupsByUser.set(m.userId as string, list);
+  }
+
+  const ids = Array.from(groupsByUser.keys());
+  if (!ids.length) return [];
+  const { data: users } = await supabase.from("User").select("id, name, profilePicUrl").in("id", ids);
+
+  return (users ?? [])
+    .map((u) => ({
+      id: u.id as string,
+      name: u.name as string,
+      profilePicUrl: (u.profilePicUrl as string | null) ?? null,
+      groups: groupsByUser.get(u.id as string) ?? [],
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
 
 export default async function MessagesPage({
   searchParams,
@@ -58,7 +97,7 @@ export default async function MessagesPage({
     new Set((conversations ?? []).map((conv) => (conv.userAId === user.id ? conv.userBId : conv.userAId))),
   );
 
-  const [lastByConversation, { data: users }, { data: unreadRows }] = await Promise.all([
+  const [lastByConversation, { data: users }, { data: unreadRows }, people] = await Promise.all([
     fetchLastDirectMessages(supabase, conversationIds),
     otherUserIds.length
       ? supabase.from("User").select("id, name, profilePicUrl").in("id", otherUserIds)
@@ -70,6 +109,7 @@ export default async function MessagesPage({
       .eq("type", "NEW_MESSAGE")
       .is("groupId", null)
       .eq("isRead", false),
+    loadPeople(supabase, user.id),
   ]);
 
   const userMap: Record<string, UserRow> = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
@@ -89,11 +129,12 @@ export default async function MessagesPage({
 
   return (
     <main className="flex flex-1 flex-col px-4 py-6 md:px-11 md:py-9">
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex w-full max-w-2xl items-center gap-2">
         <MessageSquare size={28} className="text-ink" />
         <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground md:text-[32px]">
           Messages
         </h1>
+        <NewMessagePicker people={people} />
       </div>
 
       <div className="w-full max-w-2xl">
@@ -145,15 +186,8 @@ export default async function MessagesPage({
           <div className="rounded-lg border border-border bg-surface p-8 text-center">
             <MessageSquare size={48} className="mx-auto mb-3 text-muted opacity-50" />
             <p className="text-sm font-medium text-foreground">No conversations yet</p>
-            <p className="mt-1 text-xs text-muted">
-              Open a group chat, tap the member avatars, then the message icon next to someone to start one.
-            </p>
-            <Link
-              href="/home"
-              className="mt-4 inline-block rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover"
-            >
-              Go to your groups
-            </Link>
+            <p className="mt-1 text-xs text-muted">Message anyone you share a group with.</p>
+            <NewMessagePicker people={people} variant="link" />
           </div>
         )}
       </div>

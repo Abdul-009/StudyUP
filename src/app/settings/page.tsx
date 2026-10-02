@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
-import { updateNotificationPreferences } from "./actions";
+import NotificationPreferencesForm from "./NotificationPreferencesForm";
 import ChangePasswordForm from "./ChangePasswordForm";
 import LogoutButton from "./LogoutButton";
 import PushToggle from "@/components/PushToggle";
@@ -13,6 +13,8 @@ const NOTIF_TYPE_LABELS: Record<(typeof NOTIF_TYPES)[number], string> = {
   POLL_UPDATE: "Poll updates",
   ANNOUNCEMENT: "Announcements",
 };
+
+export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -38,18 +40,13 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl border border-border bg-surface p-6">
         <h2 className="text-lg font-semibold text-foreground">Notification preferences</h2>
-        <form action={updateNotificationPreferences} className="mt-4 space-y-3">
-          {NOTIF_TYPES.map((type) => (
-            <label
-              key={type}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-recessed p-3 text-sm text-foreground"
-            >
-              {NOTIF_TYPE_LABELS[type]}
-              <input type="checkbox" name={type} defaultChecked={preferenceMap[type] ?? true} className="h-4 w-4" />
-            </label>
-          ))}
-          <button className="rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">Save preferences</button>
-        </form>
+        <NotificationPreferencesForm
+          options={NOTIF_TYPES.map((type) => ({
+            type,
+            label: NOTIF_TYPE_LABELS[type],
+            enabled: preferenceMap[type] ?? true,
+          }))}
+        />
       </section>
 
       <section className="mt-6 rounded-xl border border-border bg-surface p-6">

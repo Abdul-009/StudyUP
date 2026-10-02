@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { MESSAGE_PAGE_SIZE, encodeMessageCursor } from "@/lib/messages-pagination";
 import { fetchLastGroupMessages } from "@/lib/last-messages";
-import { resolveGroupColor } from "@/lib/groupColors";
+import { assignGroupColors, resolveGroupColor } from "@/lib/groupColors";
 import ChatLayout from "./ChatLayout";
 
 type MessageRecord = {
@@ -45,6 +45,8 @@ type MemberRecord = {
 };
 
 const NO_GROUPS_PLACEHOLDER = ["00000000-0000-0000-0000-000000000000"];
+
+export const metadata = { title: "Group chat" };
 
 export default async function GroupChatPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
@@ -140,10 +142,12 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
       .eq("isRead", false),
   ]);
 
+  const groupColors = assignGroupColors(sidebarGroupRows ?? []);
+
   const sidebarGroups = (sidebarGroupRows ?? []).map((row) => ({
     id: row.id,
     name: row.name,
-    accentColor: resolveGroupColor(row.id, row.accentColor),
+    accentColor: groupColors[row.id] ?? resolveGroupColor(row.id, row.accentColor),
     lastMessage: lastMessageByGroup[row.id] ?? null,
   }));
 
@@ -185,7 +189,7 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
         activeGroupId={groupId}
         groupId={groupId}
         groupName={group.name}
-        groupColor={resolveGroupColor(group.id, group.accentColor)}
+        groupColor={groupColors[group.id] ?? resolveGroupColor(group.id, group.accentColor)}
         currentUserId={user.id}
         initialMessages={messagesWithReplies}
         initialMembers={members}

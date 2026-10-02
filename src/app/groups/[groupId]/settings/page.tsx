@@ -6,6 +6,9 @@ import GroupSettingsForm from "./GroupSettingsForm";
 import GroupMembersSection from "./GroupMembersSection";
 import InviteCodeSection from "./InviteCodeSection";
 import { resolveGroupColor } from "@/lib/groupColors";
+import { getGroupColors } from "@/lib/group-colors-server";
+
+export const metadata = { title: "Group settings" };
 
 export default async function GroupSettingsPage({
   params,
@@ -43,6 +46,8 @@ export default async function GroupSettingsPage({
   if (!group) {
     redirect("/home");
   }
+
+  const groupColors = await getGroupColors(user.id);
 
   const { data: memberRows } = await supabase
     .from("GroupMember")
@@ -93,7 +98,7 @@ export default async function GroupSettingsPage({
           groupId={groupId}
           initialName={group.name}
           initialDescription={group.description ?? ""}
-          initialAccentColor={resolveGroupColor(group.id, group.accentColor)}
+          initialAccentColor={groupColors[group.id] ?? resolveGroupColor(group.id, group.accentColor)}
           canEdit={isAdmin}
         />
       </section>

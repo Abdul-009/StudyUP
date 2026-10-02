@@ -8,7 +8,7 @@ import CreateGroupModal from "./CreateGroupModal";
 import PublicGroupsSearch from "./PublicGroupsSearch";
 import JoinByCodeForm from "./JoinByCodeForm";
 import LocalTime from "@/components/LocalTime";
-import { resolveGroupColor } from "@/lib/groupColors";
+import { assignGroupColors, resolveGroupColor } from "@/lib/groupColors";
 
 const PUBLIC_GROUPS_PAGE_SIZE = 5;
 
@@ -64,6 +64,8 @@ function AvatarStack({ members }: { members: AvatarMember[] }) {
     </div>
   );
 }
+
+export const metadata = { title: "Your groups" };
 
 export default async function HomePage({
   searchParams,
@@ -144,6 +146,8 @@ export default async function HomePage({
     return Boolean(lastMessage && (!lastSeenAt || new Date(lastMessage.createdAt).getTime() > new Date(lastSeenAt).getTime()));
   }).length;
 
+  const groupColors = assignGroupColors(joinedGroups ?? []);
+
   const groupCards: GroupCard[] = (joinedGroups ?? []).map((group) => {
     const members = (allMemberRows ?? []).filter((row) => row.groupId === group.id);
     const lastMessage = lastMessageByGroup[group.id] ?? null;
@@ -156,7 +160,7 @@ export default async function HomePage({
       id: group.id,
       name: group.name,
       description: group.description,
-      accentColor: resolveGroupColor(group.id, group.accentColor),
+      accentColor: groupColors[group.id] ?? resolveGroupColor(group.id, group.accentColor),
       avatarMembers: members.map((row) => userMap[row.userId]).filter((member): member is AvatarMember => Boolean(member)),
       lastMessage,
       hasUnread,

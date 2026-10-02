@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "StudyUp",
+  title: { default: "StudyUp", template: "%s · StudyUp" },
   description: "Your study group's chat, files, assignments and scheduling in one place",
   applicationName: "StudyUp",
   appleWebApp: { capable: true, title: "StudyUp", statusBarStyle: "default" },
@@ -48,16 +48,24 @@ export default async function RootLayout({
   const { data: { user } } = await getAuthUser();
 
   let unreadCount = 0;
+  let unreadDmCount = 0;
   let profile: { name: string; course: string | null; yearOfStudy: number | null; profilePicUrl: string | null } | null = null;
   let fallbackGroupId: string | null = null;
 
   if (user) {
-    const [{ count }, { data: profileRow }, { data: membership }] = await Promise.all([
+    const [{ count }, { count: dmCount }, { data: profileRow }, { data: membership }] = await Promise.all([
       supabase
         .from("Notification")
         .select("id", { count: "exact", head: true })
         .eq("userId", user.id)
         .eq("isRead", false),
+      supabase
+        .from("Notification")
+        .select("id", { count: "exact", head: true })
+        .eq("userId", user.id)
+        .eq("isRead", false)
+        .eq("type", "NEW_MESSAGE")
+        .is("groupId", null),
       supabase
         .from("User")
         .select("name, course, yearOfStudy, profilePicUrl")
@@ -73,6 +81,7 @@ export default async function RootLayout({
     ]);
 
     unreadCount = count ?? 0;
+    unreadDmCount = dmCount ?? 0;
     profile = profileRow ?? null;
     fallbackGroupId = membership?.groupId ?? null;
   }
@@ -93,6 +102,7 @@ export default async function RootLayout({
               userYearOfStudy={profile?.yearOfStudy ?? null}
               userProfilePicUrl={profile?.profilePicUrl ?? null}
               unreadCount={unreadCount}
+              unreadDmCount={unreadDmCount}
               fallbackGroupId={fallbackGroupId}
             />
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">

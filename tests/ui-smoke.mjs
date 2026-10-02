@@ -161,8 +161,53 @@ async function runViewport(browser, label, contextOptions, ids) {
   page.on("pageerror", (e) => consoleErrors.push(String(e)));
   const isMobile = !!contextOptions.isMobile;
 
+  // Three unread notifications for Alice: two group messages + one DM.
+  await admin.from("Notification").delete().eq("userId", ids.a);
+  const { error: notifError } = await admin.from("Notification").insert([
+    { userId: ids.a, type: "NEW_MESSAGE", groupId: ids.main, content: "g1" },
+    { userId: ids.a, type: "NEW_MESSAGE", groupId: ids.main, content: "g2" },
+    { userId: ids.a, type: "NEW_MESSAGE", groupId: null, refId: ids.conv, content: "dm" },
+  ]);
+  if (notifError) throw new Error("seeding notifications failed: " + notifError.message);
+
   await login(page, emailA);
   await page.screenshot({ path: `${SHOTS}/${label}-home.png` });
+
+  const bell = isMobile ? page.locator('header a[aria-label="Notifications"]') : page.locator('aside a[href="/notifications"]');
+  const dmTab = isMobile ? page.locator('nav a[aria-label="Messages"]') : page.locator('aside a[href="/messages"]');
+  const hasCount = async (loc, n) => (await loc.innerText().catch(() => "")).includes(String(n));
+  await page.waitForFunction(() => true);
+  await page.waitForTimeout(1500);
+  record(await hasCount(bell, 3), `${label}: bell shows 3 unread`, (await bell.innerText()).replace(/\s+/g, " "));
+  record(await hasCount(dmTab, 1), `${label}: Messages tab shows 1 unread DM`, (await dmTab.innerText()).replace(/\s+/g, " "));
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: "domcontentloaded" });
+  const clearBtn = page.getByRole("button", { name: "Clear all" });
+  await clearBtn.waitFor({ timeout: 30_000 });
+  await page.screenshot({ path: `${SHOTS}/${label}-notifications.png` });
+  page.once("dialog", (d) => d.accept());
+  await clearBtn.click();
+  const cleared = await page
+    .waitForFunction(
+      (mobile) => {
+        const el = mobile
+          ? document.querySelector('header a[aria-label="Notifications"]')
+          : document.querySelector('aside a[href="/notifications"]');
+        return !!el && !/\d/.test(el.textContent || "");
+      },
+      isMobile,
+      { timeout: 8_000 },
+    )
+    .then(() => true, () => false);
+  record(cleared, `${label}: after "Clear all" the unread badge disappears without a reload`);
+  const emptyShown = await page.getByText("Nothing here yet").waitFor({ timeout: 8_000 }).then(() => true, () => false);
+  if (!emptyShown) await page.screenshot({ path: `${SHOTS}/${label}-notifications-after-clear.png` });
+  record(emptyShown, `${label}: notifications page shows the empty state`);
+
+  // settings: preferences give feedback
+  await page.goto(`${BASE}/settings`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  record(await page.getByText("Saved", { exact: true }).waitFor({ timeout: 10_000 }).then(() => true, () => false), `${label}: saving notification preferences shows "Saved"`);
 
   const hOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(hOverflow <= 1, `${label}: /home has no horizontal overflow`, `overflow=${hOverflow}px`);
@@ -174,6 +219,7 @@ async function runViewport(browser, label, contextOptions, ids) {
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${SHOTS}/${label}-chat.png` });
 
+  record((await page.title()).startsWith("Group chat"), `${label}: tab title names the page`, await page.title());
   const vh = page.viewportSize().height;
   const box = await composer.boundingBox();
   record(!!box && box.y + box.height <= vh, `${label}: composer is visible without scrolling the page`, `bottom=${Math.round((box?.y ?? 0) + (box?.height ?? 0))} of ${vh}`);
@@ -280,6 +326,20 @@ async function runViewport(browser, label, contextOptions, ids) {
     () => record(false, `${label}: Messages list shows the last-message preview`),
   );
   await page.screenshot({ path: `${SHOTS}/${label}-messages.png` });
+
+  // starting a conversation from the Messages page
+  await page.getByRole("button", { name: /New message/ }).click();
+  const dialog = page.getByRole("dialog");
+  const listed = await dialog.getByText("Smoke Bob").waitFor({ timeout: 8_000 }).then(() => true, () => false);
+  record(listed, `${label}: "New message" lists people you share a group with`);
+  await page.screenshot({ path: `${SHOTS}/${label}-new-message.png` });
+  if (listed) {
+    await dialog.getByText("Smoke Bob").click();
+    await page.waitForURL(new RegExp("/messages/[0-9a-f-]{36}"), { timeout: 60_000 }).then(
+      () => record(true, `${label}: choosing a person opens the conversation`),
+      () => record(false, `${label}: choosing a person opens the conversation`, page.url()),
+    );
+  }
   await page.goto(`${BASE}/messages/${ids.conv}`, { waitUntil: "domcontentloaded" });
   const dmComposer = page.locator("form textarea");
   await dmComposer.waitFor({ timeout: 30_000 });
@@ -306,6 +366,28 @@ try {
     { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
     ids,
   );
+  console.log("\n=== login return path ===");
+  const anon = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const anonPage = await anon.newPage();
+  await anonPage.goto(`${BASE}/groups/${ids.main}/chat`, { waitUntil: "domcontentloaded" });
+  await anonPage.waitForURL("**/login**", { timeout: 60_000 });
+  record(anonPage.url().includes("next="), "signed-out visit to a group page is sent to /login with ?next=", anonPage.url());
+  await anonPage.waitForFunction(
+    () => {
+      const el = document.querySelector('input[type="email"]');
+      return !!el && Object.keys(el).some((k) => k.startsWith("__reactProps"));
+    },
+    null,
+    { timeout: 60_000 },
+  );
+  await anonPage.fill('input[type="email"]', emailA);
+  await anonPage.fill('input[type="password"]', pw);
+  await anonPage.click('button[type="submit"]');
+  await anonPage.waitForURL(`**/groups/${ids.main}/chat`, { timeout: 120_000 }).then(
+    () => record(true, "after signing in you land back on the page you wanted"),
+    () => record(false, "after signing in you land back on the page you wanted", anonPage.url()),
+  );
+  await anon.close();
   await browser.close();
 } catch (err) {
   console.error("\nTest run crashed:", err);

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { uploadGroupFile } from "./actions";
 import LocalTime from "@/components/LocalTime";
+import SubmitButton from "@/components/SubmitButton";
 
 type FileRecord = {
   id: string;
@@ -23,6 +24,8 @@ function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+export const metadata = { title: "Files" };
 
 export default async function GroupFilesPage({
   params,
@@ -102,7 +105,7 @@ export default async function GroupFilesPage({
             className="block w-full rounded-[10px] border border-border bg-surface-recessed px-3 py-2"
           />
           <p className="text-sm text-muted">Max size: 10MB. Allowed types: pdf, doc, docx, ppt, pptx, jpg, png.</p>
-          <button className="rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">Upload</button>
+          <SubmitButton pendingLabel="Uploading…" className="rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">Upload</SubmitButton>
         </form>
       </section>
 

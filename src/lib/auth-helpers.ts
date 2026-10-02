@@ -43,3 +43,10 @@ export function notifyEmailSent(email: string) {
     // Some browsers throw if constructed outside a SW context — ignore.
   }
 }
+
+// Only same-site relative paths are allowed as a post-login destination, so the
+// ?next= parameter can't be used as an open redirect.
+export function safeNextPath(raw: string | null | undefined, fallback = "/home"): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return fallback;
+  return raw;
+}

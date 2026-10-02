@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/auth-helpers";
 
 function GoogleG() {
   return (
@@ -32,7 +33,7 @@ type Props = {
   label?: string;
 };
 
-export default function GoogleSignInButton({ next = "/home", label = "Continue with Google" }: Props) {
+export default function GoogleSignInButton({ next, label = "Continue with Google" }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,10 +41,12 @@ export default function GoogleSignInButton({ next = "/home", label = "Continue w
     setLoading(true);
     setError(null);
     const supabase = createClient();
+    // An explicit prop wins; otherwise honour ?next= (set when a signed-out visitor was bounced to login).
+    const target = next ?? safeNextPath(new URLSearchParams(window.location.search).get("next"));
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(target)}`,
         queryParams: { prompt: "select_account" },
       },
     });

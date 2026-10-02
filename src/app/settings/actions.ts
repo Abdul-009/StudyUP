@@ -1,17 +1,21 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 const NOTIF_TYPES = ["NEW_MESSAGE", "NEW_ASSIGNMENT", "POLL_UPDATE", "ANNOUNCEMENT"] as const;
 
-export async function updateNotificationPreferences(formData: FormData) {
+export type PreferencesState = { saved: boolean; error: string | null };
+
+export async function updateNotificationPreferences(
+  _prev: PreferencesState,
+  formData: FormData,
+): Promise<PreferencesState> {
   const supabase = await createClient();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    throw new Error("You must be signed in to update notification preferences.");
+    return { saved: false, error: "You must be signed in to update notification preferences." };
   }
 
   const preferences = NOTIF_TYPES.map((type) => ({
@@ -25,9 +29,9 @@ export async function updateNotificationPreferences(formData: FormData) {
     .upsert(preferences, { onConflict: "userId,type" });
 
   if (error) {
-    throw new Error(error.message);
+    return { saved: false, error: "Couldn't save your preferences. Please try again." };
   }
 
   revalidatePath("/settings");
-  redirect("/settings");
+  return { saved: true, error: null };
 }

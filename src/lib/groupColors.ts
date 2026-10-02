@@ -18,6 +18,41 @@ export const GROUP_COLOR_PALETTE = [
 // picks one explicitly in group settings.
 const LEGACY_COLORS = new Set(["#1AA76B", "#4E9270", "#8A9A2E", "#159C8C", "#2F6B4C", "#06B6D4"]);
 
+// Colours for a whole set of groups at once: explicitly chosen colours are kept,
+// and groups still on a legacy colour are spread across the palette so no two
+// of them share one (while there are colours left). Deterministic: the same set
+// always gives the same result, so every page agrees.
+export function assignGroupColors(
+  groups: { id: string; accentColor: string | null | undefined }[],
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  const used = new Set<string>();
+
+  for (const group of groups) {
+    if (group.accentColor && !LEGACY_COLORS.has(group.accentColor.toUpperCase())) {
+      result[group.id] = group.accentColor;
+      used.add(group.accentColor.toUpperCase());
+    }
+  }
+
+  const legacy = groups.filter((group) => !(group.id in result)).sort((a, b) => a.id.localeCompare(b.id));
+  for (const group of legacy) {
+    const preferred = GROUP_COLOR_PALETTE.indexOf(resolveGroupColor(group.id, null) as (typeof GROUP_COLOR_PALETTE)[number]);
+    let chosen: string = GROUP_COLOR_PALETTE[preferred];
+    for (let step = 0; step < GROUP_COLOR_PALETTE.length; step += 1) {
+      const candidate = GROUP_COLOR_PALETTE[(preferred + step) % GROUP_COLOR_PALETTE.length];
+      if (!used.has(candidate.toUpperCase())) {
+        chosen = candidate;
+        break;
+      }
+    }
+    result[group.id] = chosen;
+    used.add(chosen.toUpperCase());
+  }
+
+  return result;
+}
+
 export function resolveGroupColor(groupId: string, stored: string | null | undefined): string {
   if (stored && !LEGACY_COLORS.has(stored.toUpperCase())) return stored;
   let hash = 0;

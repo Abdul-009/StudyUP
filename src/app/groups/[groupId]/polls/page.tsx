@@ -3,8 +3,11 @@ import { createClient, getAuthUser } from "@/lib/supabase/server";
 import CreatePollModal from "./CreatePollModal";
 import PollsListClient from "./PollsListClient";
 import { resolveGroupColor } from "@/lib/groupColors";
+import { getGroupColors } from "@/lib/group-colors-server";
 
 type PollType = "MEETING_TIME" | "STUDY_TOPIC" | "CUSTOM";
+
+export const metadata = { title: "Polls" };
 
 export default async function GroupPollsPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
@@ -26,6 +29,7 @@ export default async function GroupPollsPage({ params }: { params: Promise<{ gro
     redirect("/home");
   }
 
+  const groupColors = await getGroupColors(user.id);
   const { data: group } = await supabase.from("Group").select("id, name, accentColor").eq("id", groupId).single();
   if (!group) {
     redirect("/home");
@@ -84,7 +88,7 @@ export default async function GroupPollsPage({ params }: { params: Promise<{ gro
         key={pollList.map((p) => p.id).join(",")}
         groupId={groupId}
         groupName={group.name}
-        groupColor={resolveGroupColor(group.id, group.accentColor)}
+        groupColor={groupColors[group.id] ?? resolveGroupColor(group.id, group.accentColor)}
         currentUserId={user.id}
         initialPolls={pollList}
       />

@@ -24,6 +24,7 @@ type SidebarProps = {
   userYearOfStudy: number | null;
   userProfilePicUrl: string | null;
   unreadCount: number;
+  unreadDmCount: number;
   fallbackGroupId: string | null;
 };
 
@@ -34,6 +35,7 @@ export default function Sidebar({
   userYearOfStudy,
   userProfilePicUrl,
   unreadCount,
+  unreadDmCount,
   fallbackGroupId,
 }: SidebarProps) {
   const pathname = usePathname();
@@ -125,6 +127,11 @@ export default function Sidebar({
                   <NotificationBadge userId={userId} initialUnreadCount={unreadCount} />
                 </span>
               ) : null}
+              {item.key === "messages" ? (
+                <span className="ml-auto">
+                  <NotificationBadge userId={userId} initialUnreadCount={unreadDmCount} scope="dm" />
+                </span>
+              ) : null}
             </Link>
             ),
           )}
@@ -185,6 +192,11 @@ export default function Sidebar({
           >
             <item.Icon size={22} strokeWidth={2} />
             <span className="text-[10px] font-medium">{MOBILE_LABELS[item.key]}</span>
+            {item.key === "messages" ? (
+              <span className="pointer-events-none absolute right-[calc(50%-24px)] top-1">
+                <NotificationBadge userId={userId} initialUnreadCount={unreadDmCount} scope="dm" />
+              </span>
+            ) : null}
           </Link>
           ),
         )}

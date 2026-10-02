@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { createAnnouncement } from "./actions";
 import LocalTime from "@/components/LocalTime";
+import SubmitButton from "@/components/SubmitButton";
 
 type AnnouncementRecord = {
   id: string;
@@ -14,6 +15,8 @@ type AnnouncementRecord = {
     email: string;
   } | null;
 };
+
+export const metadata = { title: "Announcements" };
 
 export default async function GroupAnnouncementsPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
@@ -72,7 +75,7 @@ export default async function GroupAnnouncementsPage({ params }: { params: Promi
             await createAnnouncement(groupId, String(formData.get("content") || ""));
           }} className="mt-4 space-y-3">
             <textarea name="content" rows={4} required className="w-full rounded-[10px] border border-border bg-surface-recessed px-3 py-2 text-foreground" />
-            <button className="rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">Post</button>
+            <SubmitButton pendingLabel="Posting…" className="rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">Post</SubmitButton>
           </form>
         </section>
       ) : null}

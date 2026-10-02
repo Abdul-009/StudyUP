@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { resolveGroupColor } from "@/lib/groupColors";
+import { getGroupColors } from "@/lib/group-colors-server";
 import CreateAssignmentModal from "./CreateAssignmentModal";
 import AssignmentsListClient from "./AssignmentsListClient";
+
+export const metadata = { title: "Assignments" };
 
 export default async function GroupAssignmentsPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
@@ -25,6 +28,7 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
     redirect("/home");
   }
 
+  const groupColors = await getGroupColors(user.id);
   const { data: group } = await supabase.from("Group").select("id, name, accentColor").eq("id", groupId).single();
   if (!group) {
     redirect("/home");
@@ -86,7 +90,7 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
         key={assignmentList.map((a) => a.id).join(",")}
         groupId={groupId}
         groupName={group.name}
-        groupColor={resolveGroupColor(group.id, group.accentColor)}
+        groupColor={groupColors[group.id] ?? resolveGroupColor(group.id, group.accentColor)}
         currentUserId={user.id}
         totalMembers={totalMembers ?? 0}
         initialAssignments={assignmentList}

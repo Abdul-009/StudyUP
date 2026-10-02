@@ -28,6 +28,8 @@ type UserRow = {
   lastSeenAt: string | null;
 };
 
+export const metadata = { title: "Messages" };
+
 export default async function DMThreadPage({
   params,
 }: {

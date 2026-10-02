@@ -50,17 +50,17 @@ export async function middleware(request: NextRequest) {
 
     // Gate here instead of letting each page render a full shell and then
     // redirect: signed-out users go to login, signed-in users skip the auth pages.
-    const redirectTo = (path: string) => {
+    const redirectTo = (path: string, next?: string) => {
       const url = request.nextUrl.clone();
       url.pathname = path;
-      url.search = "";
+      url.search = next ? `?next=${encodeURIComponent(next)}` : "";
       const redirectResponse = NextResponse.redirect(url);
       // Keep any session cookies refreshed by getUser() above.
       response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
       return redirectResponse;
     };
 
-    if (!user && !isPublic) return redirectTo("/login");
+    if (!user && !isPublic) return redirectTo("/login", pathname + request.nextUrl.search);
     if (user && isGuestOnly) return redirectTo("/home");
   } catch (err) {
     // Auth server timed out or errored — don't let the whole site 504

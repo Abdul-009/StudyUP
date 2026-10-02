@@ -46,7 +46,9 @@ export default function GroupMembersSection({ groupId, currentUserId, isAdmin, i
   async function handleLeave() {
     if (
       !window.confirm(
-        "Leave this group? You'll lose access to its chat, files, and assignments.",
+        members.length <= 1
+          ? "You are the last member, so leaving will permanently delete this group, its messages and files. Delete it?"
+          : "Leave this group? You'll lose access to its chat, files, and assignments.",
       )
     ) {
       return;

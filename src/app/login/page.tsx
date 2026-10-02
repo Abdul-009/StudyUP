@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { safeNextPath } from "@/lib/auth-helpers";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/home");
+    router.push(safeNextPath(new URLSearchParams(window.location.search).get("next")));
     router.refresh();
   }
 
@@ -70,7 +71,7 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-muted">Welcome back to StudyUp.</p>
         </div>
 
-        <GoogleSignInButton next="/home" label="Continue with Google" />
+        <GoogleSignInButton label="Continue with Google" />
 
         <div className="flex items-center gap-3 text-xs text-muted">
           <span className="h-px flex-1 bg-border" />
