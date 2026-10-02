@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { touchLastSeen } from "@/lib/presence-actions";
 
 const PresenceContext = createContext<Set<string>>(new Set());
 
@@ -14,6 +13,7 @@ export function useIsOnline(userId: string | null | undefined) {
 }
 
 const HEARTBEAT_MS = 60_000;
+const MIN_TOUCH_GAP_MS = 15_000;
 
 // Mounted once at the root layout for every signed-in user. Tracks presence
 // on a single global channel (keyed by userId) so any chat screen can check
@@ -56,8 +56,27 @@ export default function PresenceProvider({
       }
     });
 
+    // A direct client write rather than a server action: Next runs server
+    // actions one at a time per client, so a heartbeat would queue ahead of
+    // (and delay) the user's own message sends.
+    let lastTouch = 0;
+    function touchLastSeen() {
+      const now = Date.now();
+      if (now - lastTouch < MIN_TOUCH_GAP_MS) return;
+      lastTouch = now;
+      void supabase
+        .from("User")
+        .update({ lastSeenAt: new Date(now).toISOString() })
+        .eq("id", userId)
+        .then(
+          () => {},
+          () => {},
+        );
+    }
+
+    touchLastSeen();
     const heartbeat = setInterval(() => {
-      touchLastSeen();
+      if (document.visibilityState === "visible") touchLastSeen();
     }, HEARTBEAT_MS);
 
     function handleVisibilityChange() {

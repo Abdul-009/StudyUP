@@ -2,9 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Home, MessageCircle, Mail, ListChecks, BarChart3, Bell } from "lucide-react";
 import NotificationBadge from "./NotificationBadge";
 import UserMenu from "./UserMenu";
+
+const LAST_GROUP_KEY = "studyup:lastGroupId";
+const MOBILE_LABELS: Record<string, string> = {
+  home: "Home",
+  chat: "Chat",
+  messages: "DMs",
+  assignments: "Tasks",
+  polls: "Polls",
+};
+const NO_GROUP_HINT = "Join or create a group first";
 
 type SidebarProps = {
   userId: string;
@@ -28,8 +39,28 @@ export default function Sidebar({
   const pathname = usePathname();
 
   const groupMatch = pathname.match(/^\/groups\/([^/]+)/);
-  const currentGroupId = groupMatch ? groupMatch[1] : fallbackGroupId;
+  const routeGroupId = groupMatch ? groupMatch[1] : null;
+
+  // Remember the last group visited so the Chat/Assignments/Polls tabs return
+  // there instead of always jumping to the user's oldest group.
+  const [lastGroupId, setLastGroupId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      if (routeGroupId) {
+        window.localStorage.setItem(LAST_GROUP_KEY, routeGroupId);
+      } else {
+        const stored = window.localStorage.getItem(LAST_GROUP_KEY);
+        if (stored) queueMicrotask(() => setLastGroupId(stored));
+      }
+    } catch {
+      // storage unavailable — fall back to the first group
+    }
+  }, [routeGroupId]);
+
+  const hasGroups = fallbackGroupId !== null;
+  const currentGroupId = routeGroupId ?? lastGroupId ?? fallbackGroupId;
   const groupHref = (segment: string) => (currentGroupId ? `/groups/${currentGroupId}/${segment}` : "/home");
+  const needsGroup = (key: string) => key === "chat" || key === "assignments" || key === "polls";
 
   const navItems = [
     { key: "home", href: "/home", label: "Home", Icon: Home, isActive: pathname === "/home" },
@@ -67,7 +98,18 @@ export default function Sidebar({
         </Link>
 
         <nav className="flex flex-col gap-1">
-          {navItems.map((item) => (
+          {navItems.map((item) =>
+            !hasGroups && needsGroup(item.key) ? (
+              <span
+                key={item.key}
+                aria-disabled="true"
+                title={NO_GROUP_HINT}
+                className="flex cursor-not-allowed items-center gap-3 rounded-[10px] border-l-[3px] border-l-transparent px-3 py-2.5 text-[14.5px] font-medium text-muted opacity-45"
+              >
+                <item.Icon size={18} strokeWidth={2} className="shrink-0" />
+                {item.label}
+              </span>
+            ) : (
             <Link
               key={item.key}
               href={item.href}
@@ -84,7 +126,8 @@ export default function Sidebar({
                 </span>
               ) : null}
             </Link>
-          ))}
+            ),
+          )}
         </nav>
       </aside>
 
@@ -119,19 +162,32 @@ export default function Sidebar({
       </header>
 
       {/* Mobile bottom tab bar: the 5 main nav icons (notifications is in the header) */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-border bg-surface md:hidden">
-        {mobileTabItems.map((item) => (
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+        {mobileTabItems.map((item) =>
+          !hasGroups && needsGroup(item.key) ? (
+            <span
+              key={item.key}
+              aria-disabled="true"
+              aria-label={`${item.label} — ${NO_GROUP_HINT}`}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-muted opacity-40"
+            >
+              <item.Icon size={22} strokeWidth={2} />
+              <span className="text-[10px] font-medium">{MOBILE_LABELS[item.key]}</span>
+            </span>
+          ) : (
           <Link
             key={item.key}
             href={item.href}
             aria-label={item.label}
-            className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 ${
+            className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 ${
               item.isActive ? "text-brand" : "text-muted"
             }`}
           >
             <item.Icon size={22} strokeWidth={2} />
+            <span className="text-[10px] font-medium">{MOBILE_LABELS[item.key]}</span>
           </Link>
-        ))}
+          ),
+        )}
       </nav>
     </>
   );

@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToUsers } from "@/lib/push";
+import { withoutOptedOut } from "@/lib/notification-prefs";
 import type { ChatAttachment } from "@/lib/chat-attachments";
 import {
   clampLimit,
@@ -273,13 +273,6 @@ export async function sendDirectMessage(
     throw new Error(messageError?.message || "Failed to send message.");
   }
 
-  // Update the conversation's createdAt to latest message time (for sorting in message list)
-  await supabase
-    .from("DirectConversation")
-    .update({ createdAt: new Date().toISOString() })
-    .eq("id", conversationId);
-
-  // Device push to the other participant (best-effort).
   const recipientId =
     conversation.userAId === user.id ? conversation.userBId : conversation.userAId;
   const { data: senderRow } = await supabase
@@ -295,14 +288,41 @@ export async function sendDirectMessage(
         : `📎 ${attachment.name}`
       : "");
   const preview = previewBase.replace(/\s+/g, " ").slice(0, 80);
+  const previewText = previewBase.length > 80 ? `${preview}…` : preview;
+
+  const wantsNotifications = (await withoutOptedOut(supabase, [recipientId], "NEW_MESSAGE")).length > 0;
+  if (!wantsNotifications) return message;
+
+  // In-app notification so the recipient sees the DM in the bell and Messages
+  // badge. One unread row per conversation: later messages refresh it rather
+  // than stacking up.
+  const notificationContent = `${senderRow?.name || "Someone"}: ${previewText}`;
+  const { data: refreshed } = await supabase
+    .from("Notification")
+    .update({ content: notificationContent, createdAt: new Date().toISOString() })
+    .eq("userId", recipientId)
+    .eq("type", "NEW_MESSAGE")
+    .eq("refId", conversationId)
+    .is("groupId", null)
+    .eq("isRead", false)
+    .select("id");
+  if (!refreshed?.length) {
+    await supabase.from("Notification").insert({
+      userId: recipientId,
+      type: "NEW_MESSAGE",
+      groupId: null,
+      refId: conversationId,
+      content: notificationContent,
+    });
+  }
+
   await sendPushToUsers([recipientId], {
     title: senderRow?.name || "New message",
-    body: previewBase.length > 80 ? `${preview}…` : preview,
+    body: previewText,
     url: `/messages/${conversationId}`,
     tag: `dm-${conversationId}`,
   });
 
-  revalidatePath(`/messages/${conversationId}`);
   return message;
 }
 
@@ -371,7 +391,6 @@ export async function editDirectMessage(messageId: string, conversationId: strin
     throw new Error(updateError?.message || "Failed to edit message.");
   }
 
-  revalidatePath(`/messages/${conversationId}`);
   return updatedMessage;
 }
 
@@ -491,7 +510,6 @@ export async function deleteDirectMessage(messageId: string, conversationId: str
     throw new Error(updateError?.message || "Failed to delete message.");
   }
 
-  revalidatePath(`/messages/${conversationId}`);
   return updatedMessage;
 }
 

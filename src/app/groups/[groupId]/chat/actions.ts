@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToUsers } from "@/lib/push";
+import { withoutOptedOut } from "@/lib/notification-prefs";
 import type { ChatAttachment } from "@/lib/chat-attachments";
 import {
   clampLimit,
@@ -291,9 +291,16 @@ export async function createGroupMessage(
   const preview = base.replace(/\s+/g, " ").slice(0, 80);
   const previewText = base.length > 80 ? `${preview}…` : preview;
 
-  const recipientIds = memberIds.filter((memberId) => memberId !== user.id);
+  const recipientIds = await withoutOptedOut(
+    supabase,
+    memberIds.filter((memberId) => memberId !== user.id),
+    "NEW_MESSAGE",
+  );
 
-  const notifications = recipientIds.map((memberId) => ({
+  // Mentioned members get a MENTION notification instead, not both.
+  const notifications = recipientIds
+    .filter((memberId) => !mentionedUserIds.includes(memberId))
+    .map((memberId) => ({
     userId: memberId,
     type: "NEW_MESSAGE",
     groupId,
@@ -338,7 +345,6 @@ export async function createGroupMessage(
     tag: `group-${groupId}`,
   });
 
-  revalidatePath(`/groups/${groupId}/chat`);
   return message;
 }
 
@@ -360,7 +366,7 @@ export async function editGroupMessage(messageId: string, groupId: string, conte
 
   const { data: message, error: messageError } = await supabase
     .from("Message")
-    .select("id, userId, groupId, isDeleted, createdAt")
+    .select("id, userId, groupId, isDeleted, createdAt, mentionedUserIds")
     .eq("id", messageId)
     .maybeSingle();
 
@@ -380,10 +386,25 @@ export async function editGroupMessage(messageId: string, groupId: string, conte
     throw new Error("Edit window has expired");
   }
 
+  // Re-resolve @mentions against the new text. Previously picked mentions whose
+  // names are still present are kept, so an ambiguous duplicate name doesn't
+  // silently drop a mention the sender chose from the dropdown.
+  const { data: memberRows } = await supabase.from("GroupMember").select("userId").eq("groupId", groupId);
+  const memberIds = (memberRows ?? []).map((row) => row.userId);
+  const { data: memberUsers } = memberIds.length
+    ? await supabase.from("User").select("id, name").in("id", memberIds)
+    : { data: [] as { id: string; name: string }[] };
+  const resolved = new Set(resolveMentions(trimmedContent, memberUsers ?? [], null));
+  for (const previousId of (message.mentionedUserIds as string[] | null) ?? []) {
+    const name = (memberUsers ?? []).find((u) => u.id === previousId)?.name;
+    if (name && trimmedContent.includes(`@${name}`)) resolved.add(previousId);
+  }
+
   const { data: updatedMessage, error: updateError } = await supabase
     .from("Message")
     .update({
       content: trimmedContent,
+      mentionedUserIds: Array.from(resolved),
       isEdited: true,
       editedAt: new Date().toISOString(),
     })
@@ -397,7 +418,6 @@ export async function editGroupMessage(messageId: string, groupId: string, conte
     throw new Error(updateError?.message || "Failed to edit message.");
   }
 
-  revalidatePath(`/groups/${groupId}/chat`);
   return updatedMessage;
 }
 
@@ -499,7 +519,6 @@ export async function deleteMessage(messageId: string, groupId: string) {
     throw new Error(updateError?.message || "Failed to delete message.");
   }
 
-  revalidatePath(`/groups/${groupId}/chat`);
   return updatedMessage;
 }
 

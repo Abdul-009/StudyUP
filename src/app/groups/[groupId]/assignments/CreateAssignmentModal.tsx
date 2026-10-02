@@ -6,6 +6,23 @@ import { createAssignment } from "./actions";
 
 export default function CreateAssignmentModal({ groupId }: { groupId: string }) {
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    setPending(true);
+    setError(null);
+    try {
+      await createAssignment(formData);
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <>
@@ -38,7 +55,7 @@ export default function CreateAssignmentModal({ groupId }: { groupId: string }) 
                 <X size={18} />
               </button>
             </div>
-            <form action={createAssignment} className="mt-4 space-y-3">
+            <form onSubmit={handleSubmit} className="mt-4 space-y-3">
               <input type="hidden" name="groupId" value={groupId} />
               <label className="block text-sm text-muted">
                 Title
@@ -65,8 +82,12 @@ export default function CreateAssignmentModal({ groupId }: { groupId: string }) 
                   className="mt-1 w-full rounded-md border border-border px-3 py-2 text-foreground"
                 />
               </label>
-              <button className="w-full rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">
-                Create assignment
+              {error ? <p className="text-sm text-coral">{error}</p> : null}
+              <button
+                disabled={pending}
+                className="w-full rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover disabled:opacity-60"
+              >
+                {pending ? "Creating…" : "Create assignment"}
               </button>
             </form>
           </div>

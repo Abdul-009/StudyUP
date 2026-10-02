@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { BellOff } from "lucide-react";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { markNotificationAsRead, markAllNotificationsAsRead, clearAllNotifications } from "./actions";
+import LocalTime from "@/components/LocalTime";
 
 const TYPE_LABELS: Record<string, string> = {
   NEW_MESSAGE: "New message",
@@ -53,7 +54,7 @@ function NotificationRow({ notification }: { notification: NotificationRecord })
           <p className="truncate text-xs text-muted">{notification.content}</p>
         </div>
         <span className="shrink-0 font-mono text-[12.5px] font-semibold text-muted">
-          {new Date(notification.createdAt).toLocaleString()}
+          <LocalTime iso={notification.createdAt} />
         </span>
       </button>
     </form>

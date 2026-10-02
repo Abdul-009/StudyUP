@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-4">
+    <main className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center px-4">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo.svg" alt="StudyUp" width={148} height={34} className="mb-6 h-[34px] w-auto" />
       <form onSubmit={handleSubmit} className="w-full space-y-4 rounded-[20px] border border-border bg-surface p-6 sm:p-7">

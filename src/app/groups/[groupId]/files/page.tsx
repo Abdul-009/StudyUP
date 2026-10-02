@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { uploadGroupFile } from "./actions";
+import LocalTime from "@/components/LocalTime";
 
 type FileRecord = {
   id: string;
@@ -16,6 +17,12 @@ type FileRecord = {
     email: string;
   } | null;
 };
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default async function GroupFilesPage({
   params,
@@ -106,7 +113,6 @@ export default async function GroupFilesPage({
             <p className="text-sm text-muted">Filter by file type.</p>
           </div>
           <form method="get" className="flex gap-2">
-            <input type="hidden" name="groupId" value={groupId} />
             <select name="type" defaultValue={fileTypeFilter} className="rounded-[10px] border border-border bg-surface-recessed px-3 py-2 text-foreground">
               <option value="">All types</option>
               <option value="pdf">PDF</option>
@@ -131,11 +137,11 @@ export default async function GroupFilesPage({
                       {file.fileName}
                     </a>
                     <p className="mt-1 text-sm text-muted">
-                      {file.fileType.toUpperCase()} • {file.fileSize} bytes • {file.uploader?.name || "Unknown uploader"}
+                      {file.fileType.toUpperCase()} • {formatBytes(file.fileSize)} • {file.uploader?.name || "Unknown uploader"}
                     </p>
                   </div>
                   <div className="font-mono text-xs text-muted">
-                    <p>{new Date(file.createdAt).toLocaleString()}</p>
+                    <p><LocalTime iso={file.createdAt} /></p>
                   </div>
                 </div>
               </div>

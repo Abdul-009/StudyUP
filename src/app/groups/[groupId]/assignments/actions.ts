@@ -1,8 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { withoutOptedOut } from "@/lib/notification-prefs";
 import {
   assertMaxLength,
   ASSIGNMENT_DESCRIPTION_MAX_LENGTH,
@@ -68,8 +68,15 @@ export async function createAssignment(formData: FormData) {
   }
 
   const { data: members } = await supabase.from("GroupMember").select("userId").eq("groupId", groupId);
+  const notifyIds = new Set(
+    await withoutOptedOut(
+      supabase,
+      (members ?? []).map((m) => m.userId).filter((id) => id !== user.id),
+      "NEW_ASSIGNMENT",
+    ),
+  );
   const notifications = (members ?? [])
-    .filter((member) => member.userId !== user.id)
+    .filter((member) => notifyIds.has(member.userId))
     .map((member) => ({
       userId: member.userId,
       type: "NEW_ASSIGNMENT",
@@ -86,7 +93,6 @@ export async function createAssignment(formData: FormData) {
   }
 
   revalidatePath(`/groups/${groupId}/assignments`);
-  redirect(`/groups/${groupId}/assignments`);
 }
 
 export async function toggleAssignmentCompletion(groupId: string, assignmentId: string, completed: boolean) {

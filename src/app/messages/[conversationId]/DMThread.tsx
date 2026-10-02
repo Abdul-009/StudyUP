@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { ArrowLeft, Loader2, Paperclip, Smile, Trash2, X, Check, CheckCheck, Pencil, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -78,6 +79,10 @@ function readKey(messageId: string, userId: string) {
   return `${messageId}:${userId}`;
 }
 
+function sortMessages(items: DirectMessageRecord[]) {
+  return [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
 export default function DMThread({
   conversationId,
   currentUserId,
@@ -100,6 +105,9 @@ export default function DMThread({
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<DirectMessageRecord | null>(null);
   const [editingMessage, setEditingMessage] = useState<DirectMessageRecord | null>(null);
+  // Touch devices have no hover, so tapping a bubble reveals its action row.
+  const pendingSeqRef = useRef(0);
+  const [actionsFor, setActionsFor] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [showEmoji, setShowEmoji] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
@@ -295,6 +303,7 @@ export default function DMThread({
     return (
       message.senderId === currentUserId &&
       !message.isDeleted &&
+      !!message.content &&
       now - new Date(message.createdAt).getTime() < EDIT_WINDOW_MS
     );
   }
@@ -307,6 +316,18 @@ export default function DMThread({
   }
 
   function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Escape") {
+      if (editingMessage) {
+        event.preventDefault();
+        handleCancelEdit();
+        return;
+      }
+      if (replyingTo) {
+        event.preventDefault();
+        setReplyingTo(null);
+        return;
+      }
+    }
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       event.currentTarget.form?.requestSubmit();
@@ -495,6 +516,53 @@ export default function DMThread({
     stopTypingTimerRef.current = setTimeout(broadcastStopTyping, TYPING_TIMEOUT_MS);
   }
 
+  // Phones suspend the realtime socket when the tab is backgrounded, so anything
+  // sent meanwhile never arrives. On return (or reconnect) merge in the newest
+  // page; scroll position and the older-history cursor are left alone.
+  useEffect(() => {
+    let hiddenSince: number | null = null;
+
+    async function catchUp() {
+      try {
+        const res = await fetchDirectMessages(conversationId, { limit: MESSAGE_PAGE_SIZE });
+        const fresh = res.messages as DirectMessageRecord[];
+        setMessages((prev) => {
+          const byId = new Map(prev.map((item) => [item.id, item]));
+          for (const incoming of fresh) {
+            const existing = byId.get(incoming.id);
+            byId.set(incoming.id, { ...incoming, replyTo: incoming.replyTo ?? existing?.replyTo ?? null });
+          }
+          return sortMessages(Array.from(byId.values()));
+        });
+        if (res.reads.length) {
+          setReadKeys((prev) => {
+            const next = new Set(prev);
+            for (const r of res.reads) next.add(readKey(r.messageId, r.userId));
+            return next;
+          });
+        }
+      } catch {
+        // best effort — realtime will still deliver new messages
+      }
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        hiddenSince = performance.now();
+      } else if (hiddenSince !== null && performance.now() - hiddenSince > 10_000) {
+        hiddenSince = null;
+        void catchUp();
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", catchUp);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", catchUp);
+    };
+  }, [conversationId]);
+
   function iHaveRead(messageId: string) {
     return readKeys.has(readKey(messageId, currentUserId));
   }
@@ -570,6 +638,10 @@ export default function DMThread({
       if (!trimmed || isSending) {
         return;
       }
+      if (trimmed === (editingMessage.content ?? "")) {
+        handleCancelEdit();
+        return;
+      }
       setIsSending(true);
       setError(null);
 
@@ -590,6 +662,9 @@ export default function DMThread({
         await editDirectMessage(editTarget.id, conversationId, trimmed);
       } catch (err) {
         setMessages(previous);
+        // Put the user back in edit mode with their text instead of losing it.
+        setEditingMessage(editTarget);
+        setDraft(trimmed);
         setError(err instanceof Error ? err.message : "Unable to edit message.");
       } finally {
         setIsSending(false);
@@ -609,8 +684,9 @@ export default function DMThread({
 
     const replyContext = replyingTo;
     const optimisticReplyTo = buildReplyTo(replyContext);
+    pendingSeqRef.current += 1;
     const optimisticMessage: DirectMessageRecord = {
-      id: `pending-${Date.now()}`,
+      id: `pending-${pendingSeqRef.current}`,
       conversationId,
       senderId: currentUserId,
       content: trimmed || null,
@@ -744,8 +820,15 @@ export default function DMThread({
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="mb-4 flex items-center gap-3.5 rounded-xl border border-border bg-surface p-[14px] px-5">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-3 flex items-center gap-3.5 rounded-xl border border-border bg-surface p-[14px] px-4 md:mb-4 md:px-5">
+        <Link
+          href="/messages"
+          aria-label="Back to messages"
+          className="shrink-0 text-muted hover:text-foreground md:hidden"
+        >
+          <ArrowLeft size={20} />
+        </Link>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[17px] font-semibold text-foreground">
             {otherUser?.name || "Unknown User"}
@@ -824,11 +907,11 @@ export default function DMThread({
         </div>
       ) : null}
 
-      <section className="flex flex-1 flex-col rounded-xl border border-border bg-surface p-[22px]">
+      <section className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-surface p-3 md:p-[22px]">
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="relative flex min-h-[320px] flex-1 flex-col gap-3 overflow-y-auto pr-2 md:max-h-[480px] md:flex-none"
+          className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2 md:min-h-[320px] md:max-h-[480px] md:flex-none"
         >
           {isLoadingOlder ? (
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-2">
@@ -842,7 +925,7 @@ export default function DMThread({
             <p className="pt-1 text-center text-[11px] text-muted">Beginning of the conversation</p>
           ) : null}
           {visibleMessages.length ? (
-            visibleMessages.map((message, index) => {
+            visibleMessages.map((message) => {
               const isOwn = message.senderId === currentUserId;
               const isDeleted = message.isDeleted;
               const replyTo = message.replyTo;
@@ -851,11 +934,11 @@ export default function DMThread({
 
               return (
                 <div
-                  key={`${message.id}-${index}`}
+                  key={message.id}
                   ref={(el) => {
                     if (el) messageRefs.current[message.id] = el;
                   }}
-                  className={`flex max-w-[68%] gap-2.5 group ${
+                  className={`flex max-w-[88%] gap-2.5 group md:max-w-[68%] ${
                     isOwn ? "ml-auto flex-row-reverse" : "flex-row"
                   } transition-all rounded`}
                 >
@@ -881,8 +964,11 @@ export default function DMThread({
                         <p>This message was deleted</p>
                       </div>
                     ) : (
-                      <div className="relative flex min-w-0 items-start gap-2">
+                      <div
+                        className={`relative flex min-w-0 flex-col gap-1 md:flex-row md:items-start md:gap-2 ${isOwn ? "items-end" : "items-start"}`}
+                      >
                         <div
+                          onClick={() => setActionsFor((prev) => (prev === message.id ? null : message.id))}
                           className={`min-w-0 rounded-2xl px-[15px] py-2.5 text-sm leading-[1.45] ${
                             isOwn ? "bg-ink text-white" : "bg-surface-recessed text-foreground"
                           } ${!isOwn && !mineIsRead ? "ring-1 ring-coral/40" : ""}`}
@@ -902,7 +988,11 @@ export default function DMThread({
                             </p>
                           ) : null}
                         </div>
-                        <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div
+                          className={`gap-1 transition-opacity md:flex md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100 ${
+                            actionsFor === message.id ? "flex" : "hidden"
+                          }`}
+                        >
                           <button
                             type="button"
                             onClick={() => handleReply(message)}

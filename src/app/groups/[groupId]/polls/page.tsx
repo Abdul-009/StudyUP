@@ -79,6 +79,8 @@ export default async function GroupPollsPage({ params }: { params: Promise<{ gro
       </div>
 
       <PollsListClient
+        // Remount when polls are added/removed; the client copies props into state once.
+        key={pollList.map((p) => p.id).join(",")}
         groupId={groupId}
         groupName={group.name}
         groupColor={group.accentColor}

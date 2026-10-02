@@ -84,11 +84,11 @@ export default function ChatLayout({
   const [showList, setShowList] = useState(false);
 
   return (
-    <div className="flex min-h-[70vh] flex-1 gap-4 md:min-h-[560px]">
-      <div className={`${showList ? "flex" : "hidden"} w-full md:flex md:w-auto`}>
+    <div className="flex min-h-0 flex-1 gap-4 md:min-h-[560px]">
+      <div className={`${showList ? "flex" : "hidden"} min-h-0 w-full md:flex md:w-auto`}>
         <ChatSidebar groups={sidebarGroups} activeGroupId={activeGroupId} />
       </div>
-      <div className={`${showList ? "hidden" : "flex"} min-w-0 flex-1 md:flex`}>
+      <div className={`${showList ? "hidden" : "flex"} min-h-0 min-w-0 flex-1 md:flex`}>
         <GroupChatClient
           groupId={groupId}
           groupName={groupName}

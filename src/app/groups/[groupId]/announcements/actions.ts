@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { withoutOptedOut } from "@/lib/notification-prefs";
 import { assertMaxLength, ANNOUNCEMENT_MAX_LENGTH, sanitizeText } from "@/lib/sanitize-content";
 
 export async function createAnnouncement(groupId: string, content: string) {
@@ -48,13 +49,25 @@ export async function createAnnouncement(groupId: string, content: string) {
     throw new Error(announcementError?.message || "Failed to create announcement.");
   }
 
+  const { data: group } = await supabase.from("Group").select("name").eq("id", groupId).maybeSingle();
   const { data: members } = await supabase.from("GroupMember").select("userId").eq("groupId", groupId);
-  const notifications = (members ?? []).map((member) => ({
+  const preview = trimmedContent.replace(/s+/g, " ").slice(0, 80);
+  const previewText = trimmedContent.length > 80 ? `${preview}…` : preview;
+  const notifyIds = new Set(
+    await withoutOptedOut(
+      supabase,
+      (members ?? []).map((m) => m.userId).filter((id) => id !== user.id),
+      "ANNOUNCEMENT",
+    ),
+  );
+  const notifications = (members ?? [])
+    .filter((member) => notifyIds.has(member.userId))
+    .map((member) => ({
     userId: member.userId,
     type: "ANNOUNCEMENT",
     groupId,
     refId: announcement.id,
-    content: "New group announcement",
+    content: `${group?.name ?? "Your group"}: ${previewText}`,
   }));
 
   if (notifications.length) {

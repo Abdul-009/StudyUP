@@ -1,8 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { withoutOptedOut } from "@/lib/notification-prefs";
 import {
   assertMaxLength,
   POLL_OPTION_MAX_LENGTH,
@@ -97,8 +97,15 @@ export async function createPoll(formData: FormData) {
   }
 
   const { data: members } = await supabase.from("GroupMember").select("userId").eq("groupId", groupId);
+  const notifyIds = new Set(
+    await withoutOptedOut(
+      supabase,
+      (members ?? []).map((m) => m.userId).filter((id) => id !== user.id),
+      "POLL_UPDATE",
+    ),
+  );
   const notifications = (members ?? [])
-    .filter((member) => member.userId !== user.id)
+    .filter((member) => notifyIds.has(member.userId))
     .map((member) => ({
       userId: member.userId,
       type: "POLL_UPDATE",
@@ -115,7 +122,6 @@ export async function createPoll(formData: FormData) {
   }
 
   revalidatePath(`/groups/${groupId}/polls`);
-  redirect(`/groups/${groupId}/polls`);
 }
 
 export async function castVote(groupId: string, pollId: string, pollOptionId: string) {

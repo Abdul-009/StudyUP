@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const TYPE_ROUTES: Record<string, string> = {
   NEW_MESSAGE: "chat",
+  MENTION: "chat",
+  ASSIGNMENT_REMINDER: "assignments",
   NEW_ASSIGNMENT: "assignments",
   ANNOUNCEMENT: "announcements",
   POLL_UPDATE: "polls",
@@ -26,7 +28,7 @@ export async function markNotificationAsRead(formData: FormData) {
 
   const { data: notification, error: fetchError } = await supabase
     .from("Notification")
-    .select("id, type, groupId")
+    .select("id, type, groupId, refId")
     .eq("id", notificationId)
     .eq("userId", user.id)
     .maybeSingle();
@@ -44,6 +46,11 @@ export async function markNotificationAsRead(formData: FormData) {
 
   if (updateError) {
     throw new Error(updateError.message);
+  }
+
+  // A group-less NEW_MESSAGE is a direct message; refId is its conversation.
+  if (notification.type === "NEW_MESSAGE" && !notification.groupId && notification.refId) {
+    redirect(`/messages/${notification.refId}`);
   }
 
   const routeSegment = TYPE_ROUTES[notification.type];

@@ -80,6 +80,9 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
       </div>
 
       <AssignmentsListClient
+        // Remount when the set of assignments changes so a newly created one
+        // appears; the client copies props into state once.
+        key={assignmentList.map((a) => a.id).join(",")}
         groupId={groupId}
         groupName={group.name}
         groupColor={group.accentColor}

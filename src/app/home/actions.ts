@@ -63,7 +63,7 @@ export async function createGroup(formData: FormData) {
   }
 
   revalidatePath("/home");
-  redirect("/home");
+  redirect(`/groups/${group.id}/chat`);
 }
 
 export async function joinGroup(groupId: string, inviteCode?: string | null) {
@@ -94,12 +94,42 @@ export async function joinGroup(groupId: string, inviteCode?: string | null) {
     role: "MEMBER",
   });
 
-  if (error) {
+  // 23505 = already a member; just take them there.
+  if (error && error.code !== "23505") {
     throw new Error(error.message);
   }
 
   revalidatePath("/home");
-  redirect("/home");
+  redirect(`/groups/${group.id}/chat`);
+}
+
+export type JoinByCodeState = { error: string | null };
+
+export async function joinGroupByCode(_prev: JoinByCodeState, formData: FormData): Promise<JoinByCodeState> {
+  const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { error: "You must be signed in to join a group." };
+  }
+
+  const code = String(formData.get("inviteCode") || "").trim().toUpperCase();
+  if (!code) {
+    return { error: "Enter an invite code." };
+  }
+
+  const { data: group } = await supabase
+    .from("Group")
+    .select("id")
+    .eq("inviteCode", code)
+    .maybeSingle();
+
+  if (!group) {
+    return { error: "No group matches that invite code. Check it and try again." };
+  }
+
+  await joinGroup(group.id, code);
+  return { error: null };
 }
 
 export async function joinGroupFromForm(formData: FormData) {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
@@ -24,6 +24,13 @@ const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#faf8f4",
+};
 
 export const metadata: Metadata = {
   title: "StudyUp",
@@ -97,7 +104,7 @@ export default async function RootLayout({
                   userProfilePicUrl={profile?.profilePicUrl ?? null}
                 />
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto pb-16 md:pb-0">{children}</div>
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:block md:pb-0">{children}</div>
             </div>
           </PresenceProvider>
         ) : (

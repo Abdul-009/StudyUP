@@ -138,15 +138,24 @@ export default async function DMThreadPage({
 
   // Read receipts for this thread (one row = a participant read a message).
   const threadMessageIds = (messages ?? []).map((msg) => msg.id);
-  const { data: readRows } = threadMessageIds.length
-    ? await supabase
-        .from("DirectMessageRead")
-        .select("messageId, userId")
-        .in("messageId", threadMessageIds)
-    : { data: [] as { messageId: string; userId: string }[] };
+  const now = new Date().toISOString();
+  const [{ data: readRows }] = await Promise.all([
+    threadMessageIds.length
+      ? supabase.from("DirectMessageRead").select("messageId, userId").in("messageId", threadMessageIds)
+      : Promise.resolve({ data: [] as { messageId: string; userId: string }[] }),
+    // Opening the thread clears its DM notification so the bell/badge isn't stuck.
+    supabase
+      .from("Notification")
+      .update({ isRead: true, readAt: now })
+      .eq("userId", user.id)
+      .eq("type", "NEW_MESSAGE")
+      .eq("refId", conversationId)
+      .is("groupId", null)
+      .eq("isRead", false),
+  ]);
 
   return (
-    <main className="flex flex-1 flex-col px-4 py-6 md:px-11 md:py-9">
+    <main className="flex min-h-0 flex-1 flex-col px-4 py-3 md:flex-none md:px-11 md:py-9">
       <DMThread
         conversationId={conversationId}
         currentUserId={user.id}

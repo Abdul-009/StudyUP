@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { createAnnouncement } from "./actions";
+import LocalTime from "@/components/LocalTime";
 
 type AnnouncementRecord = {
   id: string;
@@ -84,7 +85,7 @@ export default async function GroupAnnouncementsPage({ params }: { params: Promi
               <div key={announcement.id} className="rounded-xl border border-border bg-surface-recessed p-4">
                 <div className="flex items-center justify-between gap-2 text-sm text-muted">
                   <span>{announcement.poster?.name || "Unknown"}</span>
-                  <span className="font-mono text-xs">{new Date(announcement.createdAt).toLocaleString()}</span>
+                  <LocalTime iso={announcement.createdAt} className="font-mono text-xs" />
                 </div>
                 <p className="mt-2 whitespace-pre-wrap text-foreground">{announcement.content}</p>
               </div>

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { MESSAGE_PAGE_SIZE, encodeMessageCursor } from "@/lib/messages-pagination";
+import { fetchLastGroupMessages } from "@/lib/last-messages";
 import ChatLayout from "./ChatLayout";
 
 type MessageRecord = {
@@ -42,6 +43,8 @@ type MemberRecord = {
   } | null;
 };
 
+const NO_GROUPS_PLACEHOLDER = ["00000000-0000-0000-0000-000000000000"];
+
 export default async function GroupChatPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const supabase = await createClient();
@@ -51,72 +54,37 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
     redirect("/login");
   }
 
-  const { data: membership } = await supabase
-    .from("GroupMember")
-    .select("id")
-    .eq("groupId", groupId)
-    .eq("userId", user.id)
-    .maybeSingle();
+  // Wave 1: everything that only needs groupId / user.id. Row-level access is
+  // enforced by the membership check below, which redirects before anything
+  // from the other results is used.
+  const [
+    { data: membership },
+    { data: group },
+    { data: userMemberships },
+    { data: pageRows },
+    { data: memberRows },
+  ] = await Promise.all([
+    supabase.from("GroupMember").select("id").eq("groupId", groupId).eq("userId", user.id).maybeSingle(),
+    supabase.from("Group").select("id, name, accentColor").eq("id", groupId).maybeSingle(),
+    supabase.from("GroupMember").select("groupId").eq("userId", user.id),
+    // Only the most recent page loads up front; older history is paged in on
+    // scroll via `fetchGroupMessages`. One extra row tells us whether a page
+    // before this one exists.
+    supabase
+      .from("Message")
+      .select(
+        "id, groupId, userId, content, createdAt, editedAt, isEdited, isDeleted, deletedAt, replyToId, mentionedUserIds, attachmentUrl, attachmentType, attachmentName, attachmentSize",
+      )
+      .eq("groupId", groupId)
+      .order("createdAt", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(MESSAGE_PAGE_SIZE + 1),
+    supabase.from("GroupMember").select("id, userId, role").eq("groupId", groupId).order("role", { ascending: false }),
+  ]);
 
-  if (!membership) {
+  if (!membership || !group) {
     redirect("/home");
   }
-
-  const { data: group } = await supabase.from("Group").select("id, name, accentColor").eq("id", groupId).single();
-  if (!group) {
-    redirect("/home");
-  }
-
-  // Mark this group as seen by the current user, for the home page's unread indicator.
-  await supabase
-    .from("GroupMember")
-    .update({ lastSeenAt: new Date().toISOString() })
-    .eq("groupId", groupId)
-    .eq("userId", user.id);
-
-  // Sidebar: every group this user belongs to, plus each one's latest message preview
-  const { data: userMemberships } = await supabase.from("GroupMember").select("groupId").eq("userId", user.id);
-  const sidebarGroupIds = Array.from(new Set((userMemberships ?? []).map((row) => row.groupId)));
-
-  const { data: sidebarGroupRows } = await supabase
-    .from("Group")
-    .select("id, name, accentColor")
-    .in("id", sidebarGroupIds.length ? sidebarGroupIds : ["00000000-0000-0000-0000-000000000000"])
-    .order("name", { ascending: true });
-
-  const { data: recentMessages } = await supabase
-    .from("Message")
-    .select("groupId, content, createdAt, isDeleted")
-    .in("groupId", sidebarGroupIds.length ? sidebarGroupIds : ["00000000-0000-0000-0000-000000000000"])
-    .eq("isDeleted", false)
-    .order("createdAt", { ascending: false });
-
-  const lastMessageByGroup: Record<string, { content: string; createdAt: string }> = {};
-  for (const message of recentMessages ?? []) {
-    if (!lastMessageByGroup[message.groupId]) {
-      lastMessageByGroup[message.groupId] = { content: message.content, createdAt: message.createdAt };
-    }
-  }
-
-  const sidebarGroups = (sidebarGroupRows ?? []).map((row) => ({
-    id: row.id,
-    name: row.name,
-    accentColor: row.accentColor,
-    lastMessage: lastMessageByGroup[row.id] ?? null,
-  }));
-
-  // Only the most recent page loads up front; older history is paged in on
-  // scroll via the `fetchGroupMessages` action. Fetch one extra row to know
-  // whether a page before this one exists.
-  const { data: pageRows } = await supabase
-    .from("Message")
-    .select(
-      "id, groupId, userId, content, createdAt, editedAt, isEdited, isDeleted, deletedAt, replyToId, mentionedUserIds, attachmentUrl, attachmentType, attachmentName, attachmentSize",
-    )
-    .eq("groupId", groupId)
-    .order("createdAt", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(MESSAGE_PAGE_SIZE + 1);
 
   const initialHasMore = (pageRows ?? []).length > MESSAGE_PAGE_SIZE;
   // Client renders oldest-first; the query came back newest-first.
@@ -126,25 +94,59 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
       ? encodeMessageCursor({ createdAt: messages[0].createdAt, id: messages[0].id })
       : null;
 
-  const { data: memberRows } = await supabase
-    .from("GroupMember")
-    .select("id, userId, role")
-    .eq("groupId", groupId)
-    .order("role", { ascending: false });
-
+  const sidebarGroupIds = Array.from(new Set((userMemberships ?? []).map((row) => row.groupId)));
   const userIds = Array.from(new Set((memberRows ?? []).map((row) => row.userId)));
-  let userMap: Record<
-    string,
-    { id: string; name: string; email: string; profilePicUrl: string | null; lastSeenAt: string | null }
-  > = {};
+  const replyToIds = Array.from(
+    new Set(messages.map((msg) => msg.replyToId).filter((id): id is string => !!id)),
+  );
+  const threadMessageIds = messages.map((msg) => msg.id);
+  const now = new Date().toISOString();
 
-  if (userIds.length) {
-    const { data: users } = await supabase
-      .from("User")
-      .select("id, name, email, profilePicUrl, lastSeenAt")
-      .in("id", userIds);
-    userMap = Object.fromEntries((users ?? []).map((userRow) => [userRow.id, userRow]));
-  }
+  // Wave 2: lookups that depend on wave-1 results, plus the "I've seen this
+  // group" bookkeeping, all in parallel instead of one after another.
+  const [
+    { data: sidebarGroupRows },
+    lastMessageByGroup,
+    { data: users },
+    { data: replyTos },
+    { data: readRows },
+  ] = await Promise.all([
+    supabase
+      .from("Group")
+      .select("id, name, accentColor")
+      .in("id", sidebarGroupIds.length ? sidebarGroupIds : NO_GROUPS_PLACEHOLDER)
+      .order("name", { ascending: true }),
+    fetchLastGroupMessages(supabase, sidebarGroupIds),
+    userIds.length
+      ? supabase.from("User").select("id, name, email, profilePicUrl, lastSeenAt").in("id", userIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; email: string; profilePicUrl: string | null; lastSeenAt: string | null }[] }),
+    replyToIds.length
+      ? supabase.from("Message").select("id, content, isDeleted, userId").in("id", replyToIds)
+      : Promise.resolve({ data: [] as { id: string; content: string | null; isDeleted: boolean; userId: string }[] }),
+    threadMessageIds.length
+      ? supabase.from("MessageRead").select("messageId, userId").in("messageId", threadMessageIds)
+      : Promise.resolve({ data: [] as { messageId: string; userId: string }[] }),
+    // Home page's unread dot.
+    supabase.from("GroupMember").update({ lastSeenAt: now }).eq("groupId", groupId).eq("userId", user.id),
+    // Opening the chat is "seeing" its message notifications; otherwise the
+    // bell badge only ever grows.
+    supabase
+      .from("Notification")
+      .update({ isRead: true, readAt: now })
+      .eq("userId", user.id)
+      .eq("groupId", groupId)
+      .in("type", ["NEW_MESSAGE", "MENTION"])
+      .eq("isRead", false),
+  ]);
+
+  const sidebarGroups = (sidebarGroupRows ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    accentColor: row.accentColor,
+    lastMessage: lastMessageByGroup[row.id] ?? null,
+  }));
+
+  const userMap = Object.fromEntries((users ?? []).map((userRow) => [userRow.id, userRow]));
 
   const members: MemberRecord[] = (memberRows ?? []).map((row) => ({
     id: row.id,
@@ -153,57 +155,27 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
     user: userMap[row.userId] ?? null,
   }));
 
-  // Fetch replyTo messages for messages that have a reply
-  const replyToIds = new Set<string>();
-  
-  if (messages) {
-    for (const msg of messages) {
-      if (msg.replyToId) {
-        replyToIds.add(msg.replyToId);
-      }
-    }
-  }
-
   const replyToMessages: Record<string, { id: string; content: string | null; isDeleted: boolean; user?: { name: string } }> = {};
-  if (replyToIds.size > 0) {
-    const { data: replyTos } = await supabase
-      .from("Message")
-      .select("id, content, isDeleted, userId")
-      .in("id", Array.from(replyToIds));
-
-    if (replyTos) {
-      for (const msg of replyTos) {
-        const sender = members.find((m) => m.userId === msg.userId);
-        replyToMessages[msg.id] = {
-          id: msg.id,
-          content: msg.content,
-          isDeleted: msg.isDeleted,
-          user: sender?.user ?? undefined,
-        };
-      }
-    }
+  for (const msg of replyTos ?? []) {
+    const sender = members.find((m) => m.userId === msg.userId);
+    replyToMessages[msg.id] = {
+      id: msg.id,
+      content: msg.content,
+      isDeleted: msg.isDeleted,
+      user: sender?.user ?? undefined,
+    };
   }
 
-  // Augment messages with replyTo data
-  const messagesWithReplies = messages?.map((msg) => ({
+  const messagesWithReplies = messages.map((msg) => ({
     ...msg,
     replyTo: msg.replyToId ? replyToMessages[msg.replyToId] : null,
-  })) as MessageRecord[] | null;
-
-  // Read receipts for every message in this thread (one row = user read message).
-  const threadMessageIds = (messages ?? []).map((msg) => msg.id);
-  const { data: readRows } = threadMessageIds.length
-    ? await supabase
-        .from("MessageRead")
-        .select("messageId, userId")
-        .in("messageId", threadMessageIds)
-    : { data: [] as { messageId: string; userId: string }[] };
+  })) as MessageRecord[];
 
   return (
-    <main className="flex flex-1 flex-col px-4 py-6 md:px-11 md:py-9">
-      <div className="mb-4 flex items-end justify-between gap-4 md:mb-7">
+    <main className="flex min-h-0 flex-1 flex-col px-4 py-3 md:flex-none md:px-11 md:py-9">
+      <div className="mb-7 hidden items-end justify-between gap-4 md:flex">
         <div>
-          <h1 className="text-[26px] font-bold tracking-[-0.02em] text-foreground md:text-[32px]">Group Chat</h1>
+          <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Group Chat</h1>
           <p className="mt-1 text-sm text-muted">{group.name}</p>
         </div>
       </div>
@@ -214,7 +186,7 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
         groupName={group.name}
         groupColor={group.accentColor}
         currentUserId={user.id}
-        initialMessages={(messagesWithReplies ?? []) as MessageRecord[]}
+        initialMessages={messagesWithReplies}
         initialMembers={members}
         initialReads={readRows ?? []}
         initialHasMore={initialHasMore}

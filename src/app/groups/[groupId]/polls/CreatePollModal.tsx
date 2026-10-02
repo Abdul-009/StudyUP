@@ -4,10 +4,43 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { createPoll } from "./actions";
 
+const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 6;
 
 export default function CreatePollModal({ groupId }: { groupId: string }) {
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Stable ids so removing a middle option keeps the other inputs' typed text.
+  const [optionIds, setOptionIds] = useState<number[]>([0, 1]);
+  const [nextOptionId, setNextOptionId] = useState(2);
+
+  function addOption() {
+    if (optionIds.length >= MAX_OPTIONS) return;
+    setOptionIds((ids) => [...ids, nextOptionId]);
+    setNextOptionId((n) => n + 1);
+  }
+
+  function removeOption(id: number) {
+    setOptionIds((ids) => (ids.length > MIN_OPTIONS ? ids.filter((x) => x !== id) : ids));
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    setPending(true);
+    setError(null);
+    try {
+      await createPoll(formData);
+      setOpen(false);
+      setOptionIds([0, 1]);
+      setNextOptionId(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <>
@@ -40,7 +73,7 @@ export default function CreatePollModal({ groupId }: { groupId: string }) {
                 <X size={18} />
               </button>
             </div>
-            <form action={createPoll} className="mt-4 space-y-3">
+            <form onSubmit={handleSubmit} className="mt-4 space-y-3">
               <input type="hidden" name="groupId" value={groupId} />
               <label className="block text-sm text-muted">
                 Question
@@ -77,19 +110,48 @@ export default function CreatePollModal({ groupId }: { groupId: string }) {
                 <input type="checkbox" name="allowMultiple" className="h-4 w-4" />
                 Allow selecting multiple options
               </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {Array.from({ length: MAX_OPTIONS }, (_, index) => (
-                  <input
-                    key={index}
-                    name={`option-${index}`}
-                    placeholder={`Option ${index + 1}${index < 2 ? " (required)" : " (optional)"}`}
-                    required={index < 2}
-                    className="w-full rounded-md border border-border px-3 py-2 text-foreground"
-                  />
+              <div className="space-y-2">
+                <p className="text-sm text-muted">Options</p>
+                {optionIds.map((id, index) => (
+                  <div key={id} className="flex items-center gap-2">
+                    <input
+                      name={`option-${index}`}
+                      placeholder={`Option ${index + 1}`}
+                      required
+                      maxLength={100}
+                      className="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-foreground"
+                    />
+                    {optionIds.length > MIN_OPTIONS ? (
+                      <button
+                        type="button"
+                        onClick={() => removeOption(id)}
+                        aria-label={`Remove option ${index + 1}`}
+                        className="shrink-0 rounded-lg p-2 text-muted hover:bg-surface-recessed hover:text-coral"
+                      >
+                        <X size={16} />
+                      </button>
+                    ) : null}
+                  </div>
                 ))}
+                {optionIds.length < MAX_OPTIONS ? (
+                  <button
+                    type="button"
+                    onClick={addOption}
+                    className="flex items-center gap-1.5 rounded-[10px] border border-dashed border-border px-3.5 py-2 text-[13px] font-semibold text-muted hover:border-brand hover:text-brand"
+                  >
+                    <Plus size={14} />
+                    Add option
+                  </button>
+                ) : (
+                  <p className="text-xs text-muted">Maximum of {MAX_OPTIONS} options.</p>
+                )}
               </div>
-              <button className="w-full rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">
-                Create poll
+              {error ? <p className="text-sm text-coral">{error}</p> : null}
+              <button
+                disabled={pending}
+                className="w-full rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover disabled:opacity-60"
+              >
+                {pending ? "Creating…" : "Create poll"}
               </button>
             </form>
           </div>

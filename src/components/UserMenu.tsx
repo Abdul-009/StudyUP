@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type UserMenuProps = {
@@ -17,6 +17,26 @@ export default function UserMenu({ userName, userCourse, userYearOfStudy, userPr
   const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss on outside click or Escape instead of staying open until re-tapped.
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent | TouchEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   const initial = (userName || "?").charAt(0).toUpperCase();
   const subtitle = [userCourse, userYearOfStudy ? `Year ${userYearOfStudy}` : null].filter(Boolean).join(", ");
@@ -29,7 +49,7 @@ export default function UserMenu({ userName, userCourse, userYearOfStudy, userPr
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       {open ? (
         <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border bg-white p-1.5 shadow-lg">
           <div className="flex items-center gap-2.5 px-2.5 py-2">

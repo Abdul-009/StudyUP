@@ -234,6 +234,9 @@ export default function GroupChatClient({
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<MessageRecord | null>(null);
   const [editingMessage, setEditingMessage] = useState<MessageRecord | null>(null);
+  // Touch devices have no hover, so tapping a bubble reveals its action row.
+  const pendingSeqRef = useRef(0);
+  const [actionsFor, setActionsFor] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [mentionQuery, setMentionQuery] = useState<{ start: number; query: string } | null>(null);
   const [mentionCandidates, setMentionCandidates] = useState<MentionCandidate[]>([]);
@@ -396,6 +399,7 @@ export default function GroupChatClient({
     return (
       message.userId === currentUserId &&
       !message.isDeleted &&
+      !!message.content &&
       now - new Date(message.createdAt).getTime() < EDIT_WINDOW_MS
     );
   }
@@ -428,6 +432,18 @@ export default function GroupChatClient({
       if (event.key === "Escape") {
         event.preventDefault();
         setMentionQuery(null);
+        return;
+      }
+    }
+    if (event.key === "Escape") {
+      if (editingMessage) {
+        event.preventDefault();
+        handleCancelEdit();
+        return;
+      }
+      if (replyingTo) {
+        event.preventDefault();
+        setReplyingTo(null);
         return;
       }
     }
@@ -611,6 +627,53 @@ export default function GroupChatClient({
     };
   }, [groupId, supabase, currentUserId, router]);
 
+  // Phones suspend the realtime socket when the tab is backgrounded, so anything
+  // sent meanwhile never arrives. On return (or reconnect) merge in the newest
+  // page; scroll position and the older-history cursor are left alone.
+  useEffect(() => {
+    let hiddenSince: number | null = null;
+
+    async function catchUp() {
+      try {
+        const res = await fetchGroupMessages(groupId, { limit: MESSAGE_PAGE_SIZE });
+        const fresh = res.messages as MessageRecord[];
+        setMessages((prev) => {
+          const byId = new Map(prev.map((item) => [item.id, item]));
+          for (const incoming of fresh) {
+            const existing = byId.get(incoming.id);
+            byId.set(incoming.id, { ...incoming, replyTo: incoming.replyTo ?? existing?.replyTo ?? null });
+          }
+          return sortMessages(Array.from(byId.values()));
+        });
+        if (res.reads.length) {
+          setReadKeys((prev) => {
+            const next = new Set(prev);
+            for (const r of res.reads) next.add(readKey(r.messageId, r.userId));
+            return next;
+          });
+        }
+      } catch {
+        // best effort — realtime will still deliver new messages
+      }
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        hiddenSince = performance.now();
+      } else if (hiddenSince !== null && performance.now() - hiddenSince > 10_000) {
+        hiddenSince = null;
+        void catchUp();
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", catchUp);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", catchUp);
+    };
+  }, [groupId]);
+
   function iHaveRead(messageId: string) {
     return readKeys.has(readKey(messageId, currentUserId));
   }
@@ -692,6 +755,10 @@ export default function GroupChatClient({
       if (!trimmed || isSending) {
         return;
       }
+      if (trimmed === (editingMessage.content ?? "")) {
+        handleCancelEdit();
+        return;
+      }
       setIsSending(true);
       setError(null);
 
@@ -709,9 +776,18 @@ export default function GroupChatClient({
       requestAnimationFrame(resizeTextarea);
 
       try {
-        await editGroupMessage(editTarget.id, groupId, trimmed);
+        const saved = await editGroupMessage(editTarget.id, groupId, trimmed);
+        // The server re-resolves @mentions for the new text; mirror that locally.
+        setMessages((prev) =>
+          prev.map((item) =>
+            item.id === saved.id ? { ...item, mentionedUserIds: saved.mentionedUserIds ?? item.mentionedUserIds } : item,
+          ),
+        );
       } catch (err) {
         setMessages(previous);
+        // Put the user back in edit mode with their text instead of losing it.
+        setEditingMessage(editTarget);
+        setDraft(trimmed);
         setError(err instanceof Error ? err.message : "Unable to edit message.");
       } finally {
         setIsSending(false);
@@ -733,7 +809,8 @@ export default function GroupChatClient({
     const optimisticReplyTo = buildReplyTo(replyContext);
     const mentionSnapshot = mentionCandidates;
     const optimisticMentionedUserIds = Array.from(new Set(mentionSnapshot.map((m) => m.userId)));
-    const pendingId = `pending-${Date.now()}`;
+    pendingSeqRef.current += 1;
+    const pendingId = `pending-${pendingSeqRef.current}`;
     const optimisticMessage: MessageRecord = {
       id: pendingId,
       groupId,
@@ -989,7 +1066,7 @@ export default function GroupChatClient({
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 md:gap-4">
       <div
         className="flex items-center gap-3.5 rounded-xl border border-border bg-surface p-[14px] px-5"
         style={{ borderLeftColor: groupColor, borderLeftWidth: "4px" }}
@@ -1122,11 +1199,11 @@ export default function GroupChatClient({
         </div>
       ) : null}
 
-      <section className="flex flex-1 flex-col rounded-xl border border-border bg-surface p-[22px]">
+      <section className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-surface p-3 md:p-[22px]">
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="relative flex min-h-[320px] flex-1 flex-col gap-3 overflow-y-auto pr-2 md:max-h-[480px] md:flex-none"
+          className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2 md:min-h-[320px] md:max-h-[480px] md:flex-none"
         >
           {isLoadingOlder ? (
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-2">
@@ -1140,7 +1217,7 @@ export default function GroupChatClient({
             <p className="pt-1 text-center text-[11px] text-muted">Beginning of the conversation</p>
           ) : null}
           {visibleMessages.length ? (
-            visibleMessages.map((message, index) => {
+            visibleMessages.map((message) => {
               const isOwn = message.userId === currentUserId;
               const sender = memberMap[message.userId];
               const isDeleted = message.isDeleted;
@@ -1151,11 +1228,11 @@ export default function GroupChatClient({
 
               return (
                 <div
-                  key={`${message.id}-${index}`}
+                  key={message.id}
                   ref={(el) => {
                     if (el) messageRefs.current[message.id] = el;
                   }}
-                  className={`flex max-w-[68%] gap-2.5 group ${isOwn ? "ml-auto flex-row-reverse" : "flex-row"} transition-all rounded`}
+                  className={`flex max-w-[88%] gap-2.5 group md:max-w-[68%] ${isOwn ? "ml-auto flex-row-reverse" : "flex-row"} transition-all rounded`}
                 >
                   {sender && !isDeleted ? <Avatar member={sender} /> : null}
                   <div className={`flex min-w-0 flex-col ${isOwn ? "items-end" : "items-start"}`}>
@@ -1185,8 +1262,11 @@ export default function GroupChatClient({
                         <p>This message was deleted</p>
                       </div>
                     ) : (
-                      <div className="relative flex min-w-0 items-start gap-2">
+                      <div
+                        className={`relative flex min-w-0 flex-col gap-1 md:flex-row md:items-start md:gap-2 ${isOwn ? "items-end" : "items-start"}`}
+                      >
                         <div
+                          onClick={() => setActionsFor((prev) => (prev === message.id ? null : message.id))}
                           className={`min-w-0 rounded-2xl px-[15px] py-2.5 text-sm leading-[1.45] ${
                             isOwn ? "text-white" : "bg-surface-recessed text-foreground"
                           } ${!isOwn && !mineIsRead ? "ring-1 ring-coral/40" : ""} ${
@@ -1209,7 +1289,11 @@ export default function GroupChatClient({
                             </p>
                           ) : null}
                         </div>
-                        <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div
+                          className={`gap-1 transition-opacity md:flex md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100 ${
+                            actionsFor === message.id ? "flex" : "hidden"
+                          }`}
+                        >
                           <button
                             type="button"
                             onClick={() => handleReply(message)}

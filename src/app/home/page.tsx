@@ -3,9 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Search } from "lucide-react";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
-import { joinGroupFromForm } from "./actions";
+import { fetchLastGroupMessages } from "@/lib/last-messages";
 import CreateGroupModal from "./CreateGroupModal";
 import PublicGroupsSearch from "./PublicGroupsSearch";
+import JoinByCodeForm from "./JoinByCodeForm";
+import LocalTime from "@/components/LocalTime";
 
 const PUBLIC_GROUPS_PAGE_SIZE = 5;
 
@@ -26,14 +28,6 @@ function getInitials(name: string): string {
   if (words.length === 0) return "?";
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-function formatPreviewTime(iso: string) {
-  const date = new Date(iso);
-  const isToday = date.toDateString() === new Date().toDateString();
-  return isToday
-    ? date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    : date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function AvatarStack({ members }: { members: AvatarMember[] }) {
@@ -124,21 +118,15 @@ export default async function HomePage({
   const [
     { data: joinedGroups },
     { data: allMemberRows },
-    { data: recentMessages },
+    lastMessageByGroup,
     { data: publicGroups },
     { count: publicGroupsCount },
-    { data: privateGroups },
   ] = await Promise.all([
     supabase.from("Group").select("id, name, description, accentColor").in("id", idFilterOrPlaceholder),
     supabase.from("GroupMember").select("groupId, userId").in("groupId", idFilterOrPlaceholder),
-    supabase
-      .from("Message")
-      .select("groupId, content, createdAt")
-      .in("groupId", idFilterOrPlaceholder)
-      .order("createdAt", { ascending: false }),
+    fetchLastGroupMessages(supabase, groupIds),
     publicGroupsQuery,
     publicGroupsCountQuery,
-    supabase.from("Group").select("id, name, description").eq("isPrivate", true).neq("createdBy", user.id),
   ]);
 
   const memberUserIds = Array.from(new Set((allMemberRows ?? []).map((row) => row.userId)));
@@ -147,13 +135,6 @@ export default async function HomePage({
   if (memberUserIds.length) {
     const { data: users } = await supabase.from("User").select("id, name, profilePicUrl").in("id", memberUserIds);
     userMap = Object.fromEntries((users ?? []).map((row) => [row.id, row]));
-  }
-
-  const lastMessageByGroup: Record<string, { content: string; createdAt: string }> = {};
-  for (const message of recentMessages ?? []) {
-    if (!lastMessageByGroup[message.groupId]) {
-      lastMessageByGroup[message.groupId] = { content: message.content, createdAt: message.createdAt };
-    }
   }
 
   const unreadGroupCount = (joinedGroups ?? []).filter((group) => {
@@ -180,9 +161,6 @@ export default async function HomePage({
       hasUnread,
     };
   });
-
-  const joinedGroupIds = new Set(groupIds);
-  const visiblePrivateGroups = (privateGroups ?? []).filter((group) => !joinedGroupIds.has(group.id));
 
   return (
     <main className="max-w-[920px] px-4 py-6 md:px-11 md:py-9">
@@ -261,7 +239,7 @@ export default async function HomePage({
               <AvatarStack members={group.avatarMembers} />
               {group.lastMessage ? (
                 <span className="font-mono text-[12.5px] text-muted">
-                  {formatPreviewTime(group.lastMessage.createdAt)}
+                  <LocalTime iso={group.lastMessage.createdAt} variant="preview" />
                 </span>
               ) : null}
             </div>
@@ -285,34 +263,9 @@ export default async function HomePage({
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-foreground">Private groups</h3>
-            <div className="mt-3 space-y-3">
-              {visiblePrivateGroups.length ? (
-                visiblePrivateGroups.map((group) => (
-                  <div key={group.id} className="rounded-lg border border-border bg-surface-recessed p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h4 className="font-medium text-foreground">{group.name}</h4>
-                        <p className="text-sm text-muted">{group.description || "No description yet."}</p>
-                      </div>
-                      <form action={joinGroupFromForm} className="flex items-center gap-2">
-                        <input type="hidden" name="groupId" value={group.id} />
-                        <input
-                          name="inviteCode"
-                          placeholder="Invite code"
-                          className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground"
-                        />
-                        <button className="rounded-[10px] bg-brand px-[18px] py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-hover">
-                          Join
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted">No private groups are available to join right now.</p>
-              )}
-            </div>
+            <h3 className="text-lg font-medium text-foreground">Have an invite code?</h3>
+            <p className="mt-1 text-sm text-muted">Private groups aren&apos;t listed. Enter the code you were given to join.</p>
+            <JoinByCodeForm />
           </div>
         </div>
       </section>
