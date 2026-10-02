@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import CreatePollModal from "./CreatePollModal";
 import PollsListClient from "./PollsListClient";
+import { resolveGroupColor } from "@/lib/groupColors";
 
 type PollType = "MEETING_TIME" | "STUDY_TOPIC" | "CUSTOM";
 
@@ -83,7 +84,7 @@ export default async function GroupPollsPage({ params }: { params: Promise<{ gro
         key={pollList.map((p) => p.id).join(",")}
         groupId={groupId}
         groupName={group.name}
-        groupColor={group.accentColor}
+        groupColor={resolveGroupColor(group.id, group.accentColor)}
         currentUserId={user.id}
         initialPolls={pollList}
       />

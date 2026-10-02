@@ -84,7 +84,7 @@ export default function ChatLayout({
   const [showList, setShowList] = useState(false);
 
   return (
-    <div className="flex min-h-0 flex-1 gap-4 md:min-h-[560px]">
+    <div className="flex min-h-0 flex-1 gap-4 md:min-h-[420px]">
       <div className={`${showList ? "flex" : "hidden"} min-h-0 w-full md:flex md:w-auto`}>
         <ChatSidebar groups={sidebarGroups} activeGroupId={activeGroupId} />
       </div>

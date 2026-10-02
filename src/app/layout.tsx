@@ -104,7 +104,7 @@ export default async function RootLayout({
                   userProfilePicUrl={profile?.profilePicUrl ?? null}
                 />
               </div>
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:block md:pb-0">{children}</div>
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
             </div>
           </PresenceProvider>
         ) : (

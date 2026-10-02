@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { MESSAGE_PAGE_SIZE, encodeMessageCursor } from "@/lib/messages-pagination";
 import { fetchLastGroupMessages } from "@/lib/last-messages";
+import { resolveGroupColor } from "@/lib/groupColors";
 import ChatLayout from "./ChatLayout";
 
 type MessageRecord = {
@@ -142,7 +143,7 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
   const sidebarGroups = (sidebarGroupRows ?? []).map((row) => ({
     id: row.id,
     name: row.name,
-    accentColor: row.accentColor,
+    accentColor: resolveGroupColor(row.id, row.accentColor),
     lastMessage: lastMessageByGroup[row.id] ?? null,
   }));
 
@@ -172,8 +173,8 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
   })) as MessageRecord[];
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col px-4 py-3 md:flex-none md:px-11 md:py-9">
-      <div className="mb-7 hidden items-end justify-between gap-4 md:flex">
+    <main className="flex min-h-0 flex-1 flex-col px-4 py-3 md:px-11 md:py-6">
+      <div className="mb-4 hidden items-end justify-between gap-4 md:flex">
         <div>
           <h1 className="text-[32px] font-bold tracking-[-0.02em] text-foreground">Group Chat</h1>
           <p className="mt-1 text-sm text-muted">{group.name}</p>
@@ -184,7 +185,7 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
         activeGroupId={groupId}
         groupId={groupId}
         groupName={group.name}
-        groupColor={group.accentColor}
+        groupColor={resolveGroupColor(group.id, group.accentColor)}
         currentUserId={user.id}
         initialMessages={messagesWithReplies}
         initialMembers={members}

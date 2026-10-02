@@ -155,7 +155,7 @@ export default async function DMThreadPage({
   ]);
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col px-4 py-3 md:flex-none md:px-11 md:py-9">
+    <main className="flex min-h-0 flex-1 flex-col px-4 py-3 md:px-11 md:py-6">
       <DMThread
         conversationId={conversationId}
         currentUserId={user.id}

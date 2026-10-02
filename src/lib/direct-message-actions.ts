@@ -16,7 +16,7 @@ import { assertNotRateLimited } from "@/lib/rate-limit";
 const DM_COLUMNS =
   "id, conversationId, senderId, content, replyToId, isDeleted, deletedAt, createdAt, isEdited, editedAt, attachmentUrl, attachmentType, attachmentName, attachmentSize";
 
-const EDIT_WINDOW_MS = 15 * 60 * 1000;
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function getDirectMessages(conversationId: string) {
   const supabase = await createClient();
@@ -375,7 +375,7 @@ export async function editDirectMessage(messageId: string, conversationId: strin
   }
 
   if (Date.now() - new Date(message.createdAt).getTime() > EDIT_WINDOW_MS) {
-    throw new Error("Edit window has expired");
+    throw new Error("You can only edit messages for 24 hours after sending them.");
   }
 
   const { data: updatedMessage, error: updateError } = await supabase

@@ -5,6 +5,7 @@ import { createClient, getAuthUser } from "@/lib/supabase/server";
 import GroupSettingsForm from "./GroupSettingsForm";
 import GroupMembersSection from "./GroupMembersSection";
 import InviteCodeSection from "./InviteCodeSection";
+import { resolveGroupColor } from "@/lib/groupColors";
 
 export default async function GroupSettingsPage({
   params,
@@ -92,7 +93,7 @@ export default async function GroupSettingsPage({
           groupId={groupId}
           initialName={group.name}
           initialDescription={group.description ?? ""}
-          initialAccentColor={group.accentColor}
+          initialAccentColor={resolveGroupColor(group.id, group.accentColor)}
           canEdit={isAdmin}
         />
       </section>

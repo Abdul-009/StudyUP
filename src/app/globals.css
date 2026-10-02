@@ -70,21 +70,25 @@ h3 {
   letter-spacing: -0.01em;
 }
 
-/* Visible keyboard focus everywhere (inputs previously showed none). */
-:focus-visible {
-  outline: 2px solid var(--color-brand);
-  outline-offset: 2px;
-}
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline-offset: 0;
-}
+/* In the base layer so Tailwind utilities (e.g. focus:outline-none on the chat
+   composer) still win; unlayered CSS would override every utility. */
+@layer base {
+  /* Visible keyboard focus everywhere (inputs previously showed none). */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline-offset: 0;
+  }
 
-button:not(:disabled),
-[role="button"]:not([aria-disabled="true"]),
-summary {
-  cursor: pointer;
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
 }
 
 /* iOS Safari zooms the whole page when a focused field is under 16px. */

@@ -350,7 +350,7 @@ export async function createGroupMessage(
   return message;
 }
 
-const EDIT_WINDOW_MS = 15 * 60 * 1000;
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function editGroupMessage(messageId: string, groupId: string, content: string) {
   const supabase = await createClient();
@@ -385,7 +385,7 @@ export async function editGroupMessage(messageId: string, groupId: string, conte
   }
 
   if (Date.now() - new Date(message.createdAt).getTime() > EDIT_WINDOW_MS) {
-    throw new Error("Edit window has expired");
+    throw new Error("You can only edit messages for 24 hours after sending them.");
   }
 
   // Re-resolve @mentions against the new text. Previously picked mentions whose

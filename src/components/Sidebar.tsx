@@ -118,7 +118,7 @@ export default function Sidebar({
               }`}
               style={item.isActive ? { borderLeftColor: "var(--color-brand)" } : undefined}
             >
-              <item.Icon size={18} strokeWidth={2} className="shrink-0" />
+              <item.Icon size={18} strokeWidth={2} className={`shrink-0 ${item.isActive ? "text-brand" : ""}`} />
               {item.label}
               {item.key === "notifications" ? (
                 <span className="ml-auto">

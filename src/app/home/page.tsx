@@ -8,6 +8,7 @@ import CreateGroupModal from "./CreateGroupModal";
 import PublicGroupsSearch from "./PublicGroupsSearch";
 import JoinByCodeForm from "./JoinByCodeForm";
 import LocalTime from "@/components/LocalTime";
+import { resolveGroupColor } from "@/lib/groupColors";
 
 const PUBLIC_GROUPS_PAGE_SIZE = 5;
 
@@ -155,7 +156,7 @@ export default async function HomePage({
       id: group.id,
       name: group.name,
       description: group.description,
-      accentColor: group.accentColor,
+      accentColor: resolveGroupColor(group.id, group.accentColor),
       avatarMembers: members.map((row) => userMap[row.userId]).filter((member): member is AvatarMember => Boolean(member)),
       lastMessage,
       hasUnread,

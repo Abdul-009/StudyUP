@@ -81,7 +81,7 @@ type GroupChatClientProps = {
   onBack?: () => void;
 };
 
-const EDIT_WINDOW_MS = 15 * 60 * 1000;
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function readKey(messageId: string, userId: string) {
   return `${messageId}:${userId}`;
@@ -898,11 +898,13 @@ export default function GroupChatClient({
   }
 
   function handleReply(message: MessageRecord) {
+    setActionsFor(null);
     setEditingMessage(null);
     setReplyingTo(message);
   }
 
   function handleStartEdit(message: MessageRecord) {
+    setActionsFor(null);
     setReplyingTo(null);
     setPendingAttachment(null);
     setMentionQuery(null);
@@ -1201,7 +1203,7 @@ export default function GroupChatClient({
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2 md:min-h-[320px] md:max-h-[480px] md:flex-none"
+          className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2"
         >
           {isLoadingOlder ? (
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-2">

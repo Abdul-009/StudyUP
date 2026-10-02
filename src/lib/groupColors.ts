@@ -3,16 +3,38 @@
 // alert color (due-soon/overdue dates, unread indicators) and must never be
 // assigned as a group accent color, or it would lose its meaning as a warning.
 export const GROUP_COLOR_PALETTE = [
-  "#1AA76B", // indigo
-  "#4E9270", // sage
-  "#8A9A2E", // sunflower
-  "#159C8C", // teal
-  "#2F6B4C", // plum
+  "#16A34A", // green
+  "#3B82F6", // blue
+  "#8B5CF6", // violet
+  "#EC4899", // pink
+  "#D97706", // amber
+  "#0891B2", // cyan
+  "#475569", // slate
 ] as const;
+
+// The earlier palette was five shades of green plus a default cyan, so groups
+// were indistinguishable. Groups still holding one of those values get a
+// stable colour from the new palette, derived from their id, until someone
+// picks one explicitly in group settings.
+const LEGACY_COLORS = new Set(["#1AA76B", "#4E9270", "#8A9A2E", "#159C8C", "#2F6B4C", "#06B6D4"]);
+
+export function resolveGroupColor(groupId: string, stored: string | null | undefined): string {
+  if (stored && !LEGACY_COLORS.has(stored.toUpperCase())) return stored;
+  let hash = 0;
+  for (let i = 0; i < groupId.length; i += 1) hash = (hash * 31 + groupId.charCodeAt(i)) >>> 0;
+  return GROUP_COLOR_PALETTE[hash % GROUP_COLOR_PALETTE.length];
+}
 
 // Fixed light-tint pairing per color, straight from reference.html (each
 // group color has its own hand-picked tint rather than a generic mix).
 const COLOR_TINTS: Record<string, string> = {
+  "#16A34A": "#DCF5E4",
+  "#3B82F6": "#E0ECFF",
+  "#8B5CF6": "#EDE5FF",
+  "#EC4899": "#FCE4F1",
+  "#D97706": "#FBEBD3",
+  "#0891B2": "#D9F1F7",
+  "#475569": "#E4E8EE",
   "#1AA76B": "#E1F5EC", // indigo-tint
   "#4E9270": "#E4F1EA", // sage-tint
   "#8A9A2E": "#F1F5DA", // sunflower-tint

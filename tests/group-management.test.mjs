@@ -121,7 +121,7 @@ async function main() {
   });
 
   // ---- remove member: documents the RLS gap, same style as messaging.test.mjs ----
-  await check("2  non-admin CAN delete another member's row directly (needs RLS on GroupMember; removeMember() itself enforces admin-only via requireAdmin())", async () => {
+  await check("2  non-admin CANNOT delete another member's row directly (RLS on GroupMember)", async () => {
     const { data: group } = await admin
       .from("Group").insert({ name: `${TAG} g2`, createdBy: uA }).select("id").single();
     cleanup.groupIds.push(group.id);
@@ -132,10 +132,9 @@ async function main() {
     ]);
 
     const target = await admin.from("GroupMember").select("id").eq("groupId", group.id).eq("userId", uC).single();
-    // Bob (a non-admin) removing Carol directly against the table — this is
-    // expected to succeed today, same known gap as Message/Notification.
+    // Bob (a non-admin) removing Carol directly against the table must be refused.
     const attempt = await B.from("GroupMember").delete().eq("id", target.data.id).select("id");
-    assert(!attempt.error && attempt.data.length === 1, "expected the raw delete to succeed (documenting the gap)");
+    assert(!attempt.error && attempt.data.length === 0, "expected RLS to refuse the raw delete");
   });
 
   // ---- remove member as admin: removed member loses access on next fetch ----

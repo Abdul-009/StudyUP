@@ -70,7 +70,7 @@ type DMThreadProps = {
   initialCursor: string | null;
 };
 
-const EDIT_WINDOW_MS = 15 * 60 * 1000;
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -765,11 +765,13 @@ export default function DMThread({
   }
 
   function handleReply(message: DirectMessageRecord) {
+    setActionsFor(null);
     setEditingMessage(null);
     setReplyingTo(message);
   }
 
   function handleStartEdit(message: DirectMessageRecord) {
+    setActionsFor(null);
     setReplyingTo(null);
     setPendingAttachment(null);
     setEditingMessage(message);
@@ -909,7 +911,7 @@ export default function DMThread({
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2 md:min-h-[320px] md:max-h-[480px] md:flex-none"
+          className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2"
         >
           {isLoadingOlder ? (
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-2">

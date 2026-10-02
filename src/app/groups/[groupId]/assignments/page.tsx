@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
+import { resolveGroupColor } from "@/lib/groupColors";
 import CreateAssignmentModal from "./CreateAssignmentModal";
 import AssignmentsListClient from "./AssignmentsListClient";
 
@@ -85,7 +86,7 @@ export default async function GroupAssignmentsPage({ params }: { params: Promise
         key={assignmentList.map((a) => a.id).join(",")}
         groupId={groupId}
         groupName={group.name}
-        groupColor={group.accentColor}
+        groupColor={resolveGroupColor(group.id, group.accentColor)}
         currentUserId={user.id}
         totalMembers={totalMembers ?? 0}
         initialAssignments={assignmentList}
